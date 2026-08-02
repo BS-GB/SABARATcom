@@ -1,0 +1,58 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+
+# =========================
+# Build
+# =========================
+dist/
+dist-ssr/
+build/
+
+# =========================
+# Environment
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# Cache & Coverage
+# =========================
+.cache/
+coverage/
+
+# =========================
+# IDE
+# =========================
+.vscode/*
+!.vscode/extensions.json
+
+.idea/
+
+# =========================
+# Operating System
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Local Files
+# =========================
+*.local
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
