@@ -1,5 +1,16 @@
+import ServicesHero from "../components/service/ServicesHero";
+import ServicesGrid from "../components/service/ServicesGrid";
+import ProcessSection from "../components/service/ProcessSection";
+import ServicesCTA from "../components/service/ServicesCTA";
 function ServicesPage() {
-    return <h1>Services Page</h1>;
+    return (
+        <>
+            <ServicesHero />
+            <ServicesGrid />
+            <ProcessSection />
+            <ServicesCTA />
+        </>
+    );
 }
 
 export default ServicesPage;

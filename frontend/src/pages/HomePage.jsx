@@ -1,11 +1,15 @@
-import Button from "../components/ui/Button";
-import Container from "../components/ui/Container";
-
+import HeroSection from "../components/home/HeroSection";
+import TrustedSection from "../components/home/TrustedSection";
+import ServicesSection from "../components/home/ServicesSection";
+import WhyChooseSection from "../components/home/WhyChooseSection";
 function HomePage() {
     return (
-        <Container className="flex min-h-screen items-center justify-center">
-            <Button>Request a Quote</Button>
-        </Container>
+        <>
+            <HeroSection />
+            <TrustedSection />
+            <ServicesSection />
+            <WhyChooseSection />
+        </>
     );
 }
 

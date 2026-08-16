@@ -1,5 +1,17 @@
+import PortfolioHero from "../components/portfolio/PortfolioHero";
+import PortfolioGrid from "../components/portfolio/PortfolioGrid";
+import PortfolioCTA from "../components/portfolio/PortfolioCTA";
+
 function PortfolioPage() {
-    return <h1>Portfolio Page</h1>;
+    return (
+        <main>
+            <PortfolioHero />
+
+            <PortfolioGrid />
+
+            <PortfolioCTA />
+        </main>
+    );
 }
 
 export default PortfolioPage;
