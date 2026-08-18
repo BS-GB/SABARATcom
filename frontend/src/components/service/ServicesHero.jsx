@@ -1,7 +1,7 @@
 import Container from "../ui/Container";
 import Button from "../ui/Button";
 import { Link } from "react-router-dom";
-import { servicesHero } from "../../data/servicesHero";
+import { servicesHero } from "../../data/ServicesHero";
 
 function ServicesHero() {
     return (
