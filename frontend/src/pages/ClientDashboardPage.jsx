@@ -1,1403 +1,900 @@
+import { useEffect, useMemo, useState } from "react";
 import {
-    Activity,
-    ArrowLeft,
-    ArrowRight,
-    Bell,
-    BriefcaseBusiness,
-    CalendarDays,
-    Check,
-    CheckCircle2,
-    ChevronLeft,
-    ChevronRight,
-    Clock3,
-    Code2,
-    CreditCard,
-    FileCheck2,
-    FileText,
-    FolderOpen,
-    Globe2,
-    HelpCircle,
-    LayoutDashboard,
-    LogOut,
-    Mail,
-    MessageCircle,
-    MoreHorizontal,
-    Paperclip,
-    PenLine,
-    Plus,
-    Receipt,
-    Search,
-    Send,
-    Settings,
-    ShieldCheck,
-    Sparkles,
-    Target,
-    TicketCheck,
-    TrendingUp,
-    Upload,
-    User,
-    Users,
-    WalletCards,
-    X,
+  Activity, AlertCircle, ArrowLeft, Bell, CalendarDays, Check, CheckCircle2,
+  ChevronLeft, ClipboardCheck, Clock3, CreditCard, Download, Eye, FileCheck2,
+  FileText, FolderOpen, Headphones, LayoutDashboard, Loader2, LogOut, Menu,
+  MessageCircle, Paperclip, Plus, Receipt, RefreshCw, Send, Settings, Sparkles,
+  TrendingUp, Trash2, UploadCloud, User, Users, WalletCards, Landmark, Wallet, X, Zap
 } from "lucide-react";
 
-import {
-    Link,
-    useSearchParams,
-} from "react-router-dom";
+/* ============================================================================
+   SABARAT — ClientDashboardPage
+   ---------------------------------------------------------------------------
+   Frontend workflow prepared for Laravel API integration.
 
-import { useState } from "react";
+   Environment:
+   VITE_API_BASE_URL=http://127.0.0.1:8000/api
 
+   Expected Laravel endpoints (the UI already knows these paths):
+   GET    /client/dashboard
+   POST   /client/payment-intents
+   POST   /client/payments/{payment}/receipt
+   POST   /client/approvals/{approval}/approve
+   POST   /client/approvals/{approval}/revision
+   POST   /client/messages
+   POST   /client/requests
+   POST   /client/tickets
+   POST   /client/files
+   GET    /client/notifications
+   POST   /client/notifications/{notification}/read
+   GET    /client/meetings
+   GET    /client/invoices
 
-const BRAND = "#5EA8CC";
-const BRAND_DARK = "#3D7895";
-const BRAND_SOFT = "#EAF6FC";
-const BRAND_TINT = "#F8FCFE";
+   Until Laravel is connected, the component runs safely in localStorage demo mode.
+   ============================================================================ */
 
-const TOKENS = {
-    section: "mb-8",
-    card: "rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5",
-    cardPad: "p-6 sm:p-8",
-    cardPadSm: "p-5",
-    darkCard: "rounded-3xl bg-slate-950 text-white",
-    iconBox:
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EAF6FC] text-[#5EA8CC]",
-    iconBoxSm:
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#EAF6FC] text-[#5EA8CC]",
-    eyebrow:
-        "text-[10px] font-black uppercase tracking-[0.2em] text-[#5EA8CC]",
-    pillActive:
-        "flex w-fit items-center gap-2 rounded-full bg-[#EAF6FC] px-3 py-2 text-xs font-black text-[#3D7895]",
-    ctaDark:
-        "flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-black text-white transition hover:bg-[#5EA8CC]",
-    ctaOutline:
-        "flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-700 transition hover:border-[#5EA8CC]/30 hover:text-[#5EA8CC]",
-    ctaBrand:
-        "inline-flex items-center justify-center gap-2 rounded-xl bg-[#5EA8CC] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-[#5EA8CC]/20 transition hover:-translate-y-1 hover:bg-[#4D96BA]",
+const STORAGE = {
+  discovery: "sabarat_client_discovery_form",
+  project: "sabarat_client_project_state_v2",
+  token: "sabarat_client_token",
 };
 
-// =====================================================
-// Temporary Client Data
-// =====================================================
-
-const client = {
-    name: "SABARAT Client",
-    company: "Your Company",
-    email: "client@example.com",
+const STATUS = {
+  approval: "بانتظار اعتماد الشركة",
+  payment: "بانتظار الدفع",
+  paymentReview: "مراجعة إثبات الدفع",
+  ready: "جاهز للبدء",
+  planning: "مرحلة التخطيط",
+  progress: "قيد التنفيذ",
+  review: "مراجعة داخلية",
+  clientApproval: "بانتظار موافقة العميل",
+  revision: "بحاجة إلى تعديل",
+  delivered: "تم التسليم",
+  completed: "مكتمل",
 };
 
-const project = {
-    name: "Marketing & Digital Growth",
-    service: "Digital Marketing",
-    status: "Discovery",
-    statusLabel: "جاري تحليل احتياج المشروع",
-    progress: 28,
-    requirementsProgress: 62,
-    startDate: "لم يبدأ بعد",
-    lastUpdate: "منذ اليوم",
-    manager: "SABARAT Team",
+const NAV = [
+  ["overview", "نظرة عامة", LayoutDashboard],
+  ["progress", "تقدم المشروع", Activity],
+  ["services", "الخدمات المطلوبة", Sparkles],
+  ["tasks", "المهام والتسليمات", ClipboardCheck],
+  ["approvals", "الموافقات", FileCheck2],
+  ["files", "الملفات والمستندات", FolderOpen],
+  ["notifications", "الإشعارات", Bell],
+  ["messages", "الرسائل", MessageCircle],
+  ["meetings", "الاجتماعات", CalendarDays],
+  ["invoices", "الفواتير والدفع", WalletCards],
+  ["requests", "الطلبات الإضافية", Plus],
+  ["support", "الدعم الفني", Headphones],
+  ["company", "بيانات الحساب والشركة", Users],
+];
+
+const DEMO_DISCOVERY = {
+  companyName: "عميل SABARAT",
+  contactName: "مسؤول التواصل",
+  jobTitle: "",
+  phone: "",
+  email: "",
+  website: "",
+  city: "",
+  businessField: "غير محدد",
+  yearsInBusiness: "",
+  productsServices: "",
+  competitors: [],
+  competitiveAdvantage: "",
+  brandStatus: [],
+  marketingGoals: [],
+  challenges: [],
+  services: ["إدارة التسويق الرقمي"],
+  audience: {},
+  budget: { currency: "USD", from: "", to: "" },
+  expectations: "",
+  additional: {},
+  social: {},
 };
 
-const workspaceStats = {
-    projects: 1,
-    activeProjects: 1,
-    files: 12,
-    approvals: 2,
-    messages: 3,
-    meetings: 1,
-    invoices: 2,
-    pendingAmount: "$0",
-};
-
-const navigationGroups = [
-    {
-        title: "مساحة العمل",
-        items: [
-            { label: "الرئيسية", icon: LayoutDashboard, to: "/client-dashboard" },
-            { label: "المشاريع", icon: BriefcaseBusiness, to: "/client-projects", badge: "1" },
-            { label: "الخدمات", icon: Sparkles, to: "/client-services" },
-            { label: "المهام", icon: CheckCircle2, to: "/client-tasks", badge: "4" },
-            { label: "متطلبات المشروع", icon: Target, to: "/client-discovery", badge: "مهم" },
-        ],
-    },
-    {
-        title: "التسويق والمحتوى",
-        items: [
-            { label: "التقويم والمحتوى", icon: CalendarDays, to: "/client-content" },
-            { label: "الحملات الإعلانية", icon: TrendingUp, to: "/client-campaigns" },
-            { label: "التقارير والتحليلات", icon: Activity, to: "/client-reports" },
-        ],
-    },
-    {
-        title: "التطوير والأنظمة",
-        items: [
-            { label: "المواقع", icon: Globe2, to: "/client-websites" },
-            { label: "الأنظمة", icon: Code2, to: "/client-systems" },
-            { label: "طلبات التطوير", icon: Plus, to: "/client-feature-requests" },
-            { label: "المشاكل والأخطاء", icon: TicketCheck, to: "/client-bugs" },
-        ],
-    },
-    {
-        title: "الملفات والموافقات",
-        items: [
-            { label: "الملفات", icon: Paperclip, to: "/client-files" },
-            { label: "الموافقات", icon: FileCheck2, to: "/client-approvals", badge: "2" },
-        ],
-    },
-    {
-        title: "التواصل",
-        items: [
-            { label: "الرسائل", icon: MessageCircle, to: "/client-messages", badge: "3" },
-            { label: "الاجتماعات", icon: CalendarDays, to: "/client-meetings" },
-            { label: "الدعم", icon: HelpCircle, to: "/client-support" },
-        ],
-    },
-    {
-        title: "المالية",
-        items: [
-            { label: "العروض", icon: FileText, to: "/client-proposals" },
-            { label: "العقود", icon: FileCheck2, to: "/client-contracts" },
-            { label: "الفواتير", icon: Receipt, to: "/client-invoices" },
-            { label: "المدفوعات", icon: CreditCard, to: "/client-payments" },
-        ],
-    },
-];
-
-const activities = [
-    {
-        title: "تم إرسال نموذج الاحتياج",
-        description: "تم استلام معلومات نشاطك وأهدافك التسويقية.",
-        date: "اليوم",
-        completed: true,
-        icon: FileCheck2,
-    },
-    {
-        title: "تحليل المشروع",
-        description: "يقوم فريق SABARAT بمراجعة احتياجات المشروع.",
-        date: "قيد التنفيذ",
-        completed: true,
-        icon: Target,
-    },
-    {
-        title: "إعداد الاستراتيجية",
-        description: "سيتم إعداد التوجه التسويقي المناسب لمشروعك.",
-        date: "التالي",
-        completed: false,
-        icon: Sparkles,
-    },
-    {
-        title: "الإنتاج والتنفيذ",
-        description: "تصميم المحتوى وتنفيذ الخدمات المتفق عليها.",
-        date: "لاحقًا",
-        completed: false,
-        icon: FolderOpen,
-    },
-    {
-        title: "المراجعة والموافقة",
-        description: "مراجعة الأعمال واعتماد المخرجات النهائية.",
-        date: "لاحقًا",
-        completed: false,
-        icon: CheckCircle2,
-    },
-];
-
-const requirementSections = [
-    {
-        title: "معلومات النشاط",
-        description: "المعلومات الأساسية الخاصة بنشاطك التجاري.",
-        icon: BuildingIcon,
-        status: "مكتمل",
-        progress: 100,
-        items: ["اسم الشركة أو النشاط", "نوع النشاط", "وصف النشاط", "موقع الشركة", "بيانات التواصل"],
-    },
-    {
-        title: "أهداف المشروع",
-        description: "الأهداف التي تريد تحقيقها من المشروع.",
-        icon: Target,
-        status: "مطلوب",
-        progress: 60,
-        items: ["الهدف الرئيسي", "الأهداف التسويقية", "النتائج المتوقعة", "مؤشرات النجاح"],
-    },
-    {
-        title: "الجمهور المستهدف",
-        description: "ساعدنا على فهم العملاء الذين تستهدفهم.",
-        icon: Users,
-        status: "مطلوب",
-        progress: 45,
-        items: ["الفئة العمرية", "الموقع الجغرافي", "الاهتمامات", "السلوك الشرائي", "نوع العملاء"],
-    },
-    {
-        title: "الخدمات المطلوبة",
-        description: "حدد الخدمات التي تحتاج إليها.",
-        icon: Sparkles,
-        status: "مكتمل",
-        progress: 100,
-        items: ["إدارة حسابات التواصل الاجتماعي", "صناعة المحتوى", "الحملات الإعلانية", "Reels", "التصميم الجرافيكي"],
-    },
-    {
-        title: "الهوية التجارية",
-        description: "المعلومات المتعلقة بالعلامة التجارية.",
-        icon: PenLine,
-        status: "مطلوب",
-        progress: 55,
-        items: ["الشعار", "الألوان", "الخطوط", "Brand Guidelines", "أسلوب التواصل"],
-    },
-    {
-        title: "المنافسون",
-        description: "معلومات عن المنافسين والسوق.",
-        icon: Users,
-        status: "مطلوب",
-        progress: 40,
-        items: ["المنافسون الرئيسيون", "روابط المنافسين", "نقاط القوة", "نقاط الضعف", "الميزة التنافسية"],
-    },
-    {
-        title: "الميزانية والمدة",
-        description: "المعلومات المالية والزمنية للمشروع.",
-        icon: WalletCards,
-        status: "مطلوب",
-        progress: 50,
-        items: ["الميزانية المتوقعة", "تاريخ البداية", "الموعد المطلوب", "مدة المشروع"],
-    },
-    {
-        title: "الملفات والمرفقات",
-        description: "شارك الملفات المهمة مع فريق SABARAT.",
-        icon: Upload,
-        status: "مطلوب",
-        progress: 30,
-        items: ["الشعار", "صور المنتجات", "ملفات الهوية", "المستندات", "ملفات أخرى"],
-    },
-];
-
-const quickActions = [
-    { title: "طلب خدمة", description: "اطلب خدمة جديدة من SABARAT", icon: Plus, to: "/client-services" },
-    { title: "رفع ملف", description: "أرسل ملفات المشروع للفريق", icon: Upload, to: "/client-files" },
-    { title: "طلب اجتماع", description: "احجز موعدًا مع فريق SABARAT", icon: CalendarDays, to: "/client-meetings" },
-    { title: "إرسال رسالة", description: "تواصل مع فريق المشروع", icon: Send, to: "/client-messages" },
-];
-
-const pendingApprovals = [
-    { title: "خطة المحتوى الشهرية", type: "Content Plan", date: "اليوم" },
-    { title: "التصميم الإعلاني", type: "Social Media Design", date: "أمس" },
-];
-
-const recentFiles = [
-    { name: "SABARAT_Project_Brief.pdf", type: "PDF", size: "2.4 MB", date: "اليوم" },
-    { name: "Brand_Assets.zip", type: "ZIP", size: "18.6 MB", date: "أمس" },
-    { name: "Marketing_Strategy.docx", type: "DOCX", size: "1.8 MB", date: "منذ يومين" },
-];
-
-const services = [
-    { title: "إدارة التواصل الاجتماعي", category: "Social Media", status: "نشطة", progress: 35, icon: MessageCircle },
-    { title: "صناعة المحتوى", category: "Content", status: "قيد الإعداد", progress: 20, icon: Sparkles },
-    { title: "التطوير الرقمي", category: "Development", status: "متاحة", progress: 0, icon: Code2 },
-];
-
-const upcomingMeetings = [
-    { title: "اجتماع استراتيجية التسويق", date: "الخميس، 20 أغسطس", time: "11:00 صباحًا", type: "Google Meet" },
-];
-
-const notifications = [
-    { title: "مطلوب اعتماد", description: "لديك عمليتان بانتظار المراجعة.", icon: CheckCircle2 },
-    { title: "تم تحديث المشروع", description: "تم تحديث مرحلة المشروع إلى Discovery.", icon: Activity },
-    { title: "ملف جديد", description: "تمت إضافة ملف جديد إلى مشروعك.", icon: FileText },
-];
-
-// =====================================================
-// Main
-// =====================================================
-
-function ClientDashboardPage() {
-    const [searchParams] = useSearchParams();
-    const status = searchParams.get("status");
-
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [notificationsOpen, setNotificationsOpen] = useState(false);
-
-    return (
-        <main dir="rtl" className="min-h-screen bg-[#F6F9FC] text-slate-900">
-            {/* =================================================
-                Mobile Overlay
-            ================================================= */}
-
-            {sidebarOpen && (
-                <button
-                    type="button"
-                    aria-label="إغلاق القائمة"
-                    onClick={() => setSidebarOpen(false)}
-                    className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm lg:hidden"
-                />
-            )}
-
-            {/* =================================================
-                Sidebar
-            ================================================= */}
-
-            <aside
-                className={`
-                    fixed inset-y-0 right-0 z-50 flex w-[290px] flex-col
-                    border-l border-slate-200 bg-white shadow-2xl
-                    transition-transform duration-300 lg:translate-x-0
-                    ${sidebarOpen ? "translate-x-0" : "translate-x-full"}
-                `}
-            >
-                {/* Logo */}
-
-                <div className="flex h-20 shrink-0 items-center justify-between border-b border-slate-100 px-6">
-                    <Link to="/" className="text-2xl font-black tracking-tight text-[#5EA8CC]">
-                        SABARAT
-                        <span className="mt-1 block text-[9px] font-black tracking-[0.25em] text-slate-400">
-                            CLIENT WORKSPACE
-                        </span>
-                    </Link>
-
-                    <button
-                        type="button"
-                        onClick={() => setSidebarOpen(false)}
-                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 lg:hidden"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-
-                {/* Client */}
-
-                <div className="px-4 pt-5">
-                    <div className="flex items-center gap-3 rounded-2xl border border-[#5EA8CC]/10 bg-[#EAF6FC] p-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-black text-[#5EA8CC] shadow-sm">
-                            {client.name.charAt(0)}
-                        </div>
-
-                        <div className="min-w-0">
-                            <p className="truncate text-sm font-black text-slate-900">{client.name}</p>
-                            <p className="mt-1 truncate text-[11px] font-semibold text-slate-500">{client.company}</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Navigation */}
-
-                <nav className="mt-5 flex-1 overflow-y-auto px-4 pb-4">
-                    {navigationGroups.map((group) => (
-                        <div key={group.title} className="mb-5">
-                            <p className="mb-2 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                                {group.title}
-                            </p>
-
-                            <div className="space-y-1">
-                                {group.items.map((item) => {
-                                    const Icon = item.icon;
-
-                                    return (
-                                        <Link
-                                            key={item.label}
-                                            to={item.to}
-                                            onClick={() => setSidebarOpen(false)}
-                                            className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition-all duration-200 hover:bg-[#EAF6FC] hover:text-[#3D7895]"
-                                        >
-                                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400 transition group-hover:bg-white group-hover:text-[#5EA8CC]">
-                                                <Icon size={17} />
-                                            </span>
-
-                                            <span className="flex-1">{item.label}</span>
-
-                                            {item.badge && (
-                                                <span className="rounded-full bg-[#5EA8CC] px-2 py-0.5 text-[9px] font-black text-white">
-                                                    {item.badge}
-                                                </span>
-                                            )}
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-
-                    <div className="border-t border-slate-100 pt-5">
-                        <p className="mb-2 px-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                            الحساب
-                        </p>
-
-                        <Link
-                            to="/client-profile"
-                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50"
-                        >
-                            <User size={18} />
-                            الحساب الشخصي
-                        </Link>
-
-                        <Link
-                            to="/client-settings"
-                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50"
-                        >
-                            <Settings size={18} />
-                            الإعدادات
-                        </Link>
-
-                        <button
-                            type="button"
-                            className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50"
-                        >
-                            <LogOut size={18} />
-                            تسجيل الخروج
-                        </button>
-                    </div>
-                </nav>
-
-                {/* Help */}
-
-                <div className="shrink-0 p-4">
-                    <div className="rounded-2xl bg-slate-950 p-4 text-white">
-                        <HelpCircle size={20} className="text-[#8ED4F5]" />
-
-                        <p className="mt-3 text-sm font-black">تحتاج إلى مساعدة؟</p>
-
-                        <p className="mt-1 text-[11px] leading-5 text-slate-400">
-                            فريق SABARAT جاهز لمساعدتك في أي وقت.
-                        </p>
-
-                        <Link
-                            to="/client-support"
-                            className="mt-3 flex w-full items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-xs font-black transition hover:bg-white/20"
-                        >
-                            التواصل مع الدعم
-                        </Link>
-                    </div>
-                </div>
-            </aside>
-
-            {/* =================================================
-                Main Area
-            ================================================= */}
-
-            <div className="lg:mr-[290px]">
-                {/* =================================================
-                    Header
-                ================================================= */}
-
-                <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
-                    <div className="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setSidebarOpen(true)}
-                                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 lg:hidden"
-                            >
-                                <ChevronLeft size={19} />
-                            </button>
-
-                            <div className="hidden sm:block">
-                                <p className="text-xs font-bold text-slate-400">مساحة العميل</p>
-                                <p className="mt-1 text-sm font-black text-slate-900">{project.name}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 sm:gap-3">
-                            <button
-                                type="button"
-                                className="hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-[#5EA8CC] sm:flex"
-                            >
-                                <Search size={18} />
-                            </button>
-
-                            <div className="relative">
-                                <button
-                                    type="button"
-                                    onClick={() => setNotificationsOpen((value) => !value)}
-                                    className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-[#5EA8CC]"
-                                >
-                                    <Bell size={18} />
-                                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#5EA8CC]" />
-                                </button>
-
-                                {notificationsOpen && (
-                                    <div className="absolute left-0 top-12 z-50 w-[320px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-                                        <div className="flex items-center justify-between border-b border-slate-100 p-4">
-                                            <p className="text-sm font-black">الإشعارات</p>
-                                            <span className="text-[10px] font-bold text-[#5EA8CC]">3 جديدة</span>
-                                        </div>
-
-                                        <div>
-                                            {notifications.map((notification) => {
-                                                const Icon = notification.icon;
-
-                                                return (
-                                                    <div
-                                                        key={notification.title}
-                                                        className="flex gap-3 border-b border-slate-50 p-4 hover:bg-slate-50"
-                                                    >
-                                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EAF6FC] text-[#5EA8CC]">
-                                                            <Icon size={16} />
-                                                        </div>
-
-                                                        <div>
-                                                            <p className="text-xs font-black text-slate-900">
-                                                                {notification.title}
-                                                            </p>
-                                                            <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                                                                {notification.description}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        <Link
-                                            to="/client-notifications"
-                                            className="flex items-center justify-center p-3 text-xs font-black text-[#5EA8CC]"
-                                        >
-                                            عرض جميع الإشعارات
-                                        </Link>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EAF6FC] text-xs font-black text-[#5EA8CC]">
-                                    {client.name.charAt(0)}
-                                </div>
-
-                                <span className="hidden text-xs font-black text-slate-700 md:block">
-                                    {client.name}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-
-                {/* =================================================
-                    Content
-                ================================================= */}
-
-                <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-                    {/* =================================================
-                        1. Welcome
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-                            <div>
-                                <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#5EA8CC]/20 bg-[#EAF6FC] px-3 py-1.5 text-xs font-black text-[#3D7895]">
-                                    <Sparkles size={14} />
-                                    مساحة العميل
-                                </div>
-
-                                <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
-                                    مرحبًا بعودتك،
-                                    <span className="text-[#5EA8CC]"> عميل SABARAT</span>
-                                </h1>
-
-                                <p className="mt-4 max-w-4xl text-sm leading-7 text-slate-500 sm:text-base">
-                                    من هنا يمكنك إدارة مشاريعك وخدماتك وملفاتك وموافقاتك وتقاريرك وفواتيرك والتواصل
-                                    مباشرة مع فريق SABARAT.
-                                </p>
-                            </div>
-
-                            <Link to="/client-discovery" className={TOKENS.ctaBrand}>
-                                إكمال متطلبات المشروع
-                                <ArrowRight size={17} />
-                            </Link>
-                        </div>
-
-                        {(status === "login" || status === "registered") && (
-                            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-                                <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-emerald-600" />
-
-                                <div>
-                                    <p className="font-black text-emerald-950">
-                                        {status === "registered" ? "تم إنشاء حسابك بنجاح." : "تم تسجيل الدخول بنجاح."}
-                                    </p>
-                                    <p className="mt-1 text-sm text-emerald-700">مساحة مشروعك جاهزة الآن.</p>
-                                </div>
-                            </div>
-                        )}
-                    </section>
-
-                    {/* =================================================
-                        2. Quick Actions
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <SectionHeading
-                            eyebrow="QUICK ACTIONS"
-                            title="ماذا تريد أن تفعل؟"
-                            description="الوصول السريع إلى أهم الإجراءات في مساحة العميل."
-                        />
-
-                        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                            {quickActions.map((action) => {
-                                const Icon = action.icon;
-
-                                return (
-                                    <Link
-                                        key={action.title}
-                                        to={action.to}
-                                        className={`group ${TOKENS.card} ${TOKENS.cardPadSm} transition-all duration-300 hover:-translate-y-1 hover:border-[#5EA8CC]/30 hover:shadow-xl`}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className={TOKENS.iconBox}>
-                                                <Icon size={20} />
-                                            </div>
-
-                                            <ArrowLeft
-                                                size={16}
-                                                className="text-slate-300 transition group-hover:text-[#5EA8CC]"
-                                            />
-                                        </div>
-
-                                        <h3 className="mt-5 text-sm font-black text-slate-900">{action.title}</h3>
-                                        <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                                            {action.description}
-                                        </p>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        3. Project Overview (status + progress + stage)
-                    ================================================= */}
-
-                    <section className={`${TOKENS.section} overflow-hidden ${TOKENS.card}`}>
-                        <div className="grid lg:grid-cols-[1.4fr_0.6fr]">
-                            <div className={TOKENS.cardPad}>
-                                <p className={TOKENS.eyebrow}>المشروع الحالي</p>
-
-                                <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h2 className="text-2xl font-black text-slate-950 sm:text-3xl">
-                                            {project.name}
-                                        </h2>
-                                        <p className="mt-2 text-sm text-slate-500">{project.service}</p>
-                                    </div>
-
-                                    <span className={TOKENS.pillActive}>
-                                        <span className="h-2 w-2 animate-pulse rounded-full bg-[#5EA8CC]" />
-                                        {project.statusLabel}
-                                    </span>
-                                </div>
-
-                                <div className="mt-10">
-                                    <div className="mb-3 flex items-center justify-between">
-                                        <span className="text-sm font-bold text-slate-500">نسبة إنجاز المشروع</span>
-                                        <span className="text-lg font-black text-[#5EA8CC]">{project.progress}%</span>
-                                    </div>
-
-                                    <ProgressBar value={project.progress} />
-                                </div>
-
-                                <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-5">
-                                    <div className="mb-2 flex items-center justify-between">
-                                        <span className="text-xs font-bold text-slate-500">اكتمال متطلبات المشروع</span>
-                                        <span className="text-sm font-black text-[#5EA8CC]">
-                                            {project.requirementsProgress}%
-                                        </span>
-                                    </div>
-
-                                    <ProgressBar value={project.requirementsProgress} height="h-2.5" />
-
-                                    <p className="mt-2 text-[11px] text-slate-400">
-                                        كلما اكتملت المعلومات، تمكن الفريق من إعداد استراتيجية أدق لمشروعك.
-                                    </p>
-                                </div>
-
-                                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                                    <ProjectMeta icon={CalendarDays} label="بداية المشروع" value={project.startDate} />
-                                    <ProjectMeta icon={Clock3} label="آخر تحديث" value={project.lastUpdate} />
-                                    <ProjectMeta icon={Users} label="مدير المشروع" value={project.manager} />
-                                </div>
-                            </div>
-
-                            <div className={`bg-slate-950 text-white ${TOKENS.cardPad}`}>
-                                <p className={TOKENS.eyebrow}>المرحلة الحالية</p>
-                                <h3 className="mt-3 text-2xl font-black">Discovery</h3>
-
-                                <p className="mt-3 text-sm leading-7 text-slate-400">
-                                    تم استلام معلومات مشروعك ويقوم فريق SABARAT الآن بتحليل الاحتياج قبل الانتقال إلى
-                                    مرحلة الاستراتيجية.
-                                </p>
-
-                                <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#5EA8CC]/10 text-[#5EA8CC]">
-                                            <Target size={19} />
-                                        </div>
-
-                                        <div>
-                                            <p className="text-sm font-black">الخطوة التالية</p>
-                                            <p className="mt-1 text-xs text-slate-500">إعداد الاستراتيجية</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <Link
-                                    to="/client-projects"
-                                    className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-xs font-black transition hover:bg-white/15"
-                                >
-                                    فتح المشروع
-                                    <ArrowLeft size={15} />
-                                </Link>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        4. Workspace Stats
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            <DashboardStat
-                                icon={FolderOpen}
-                                label="المشاريع"
-                                value={workspaceStats.projects}
-                                description={`${workspaceStats.activeProjects} مشروع نشط`}
-                            />
-                            <DashboardStat
-                                icon={FileText}
-                                label="الملفات"
-                                value={workspaceStats.files}
-                                description="ملفات ومرفقات المشروع"
-                            />
-                            <DashboardStat
-                                icon={CheckCircle2}
-                                label="الموافقات"
-                                value={workspaceStats.approvals}
-                                description="أعمال بانتظار مراجعتك"
-                                accent
-                            />
-                            <DashboardStat
-                                icon={MessageCircle}
-                                label="الرسائل"
-                                value={workspaceStats.messages}
-                                description="رسائل تحتاج إلى المتابعة"
-                            />
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        5. Approvals + Meetings
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <div className="grid gap-6 lg:grid-cols-2">
-                            <div className={`${TOKENS.card} ${TOKENS.cardPad}`}>
-                                <SectionHeading
-                                    eyebrow="APPROVALS"
-                                    title="الموافقات المطلوبة"
-                                    description="راجع الأعمال التالية واعتمدها أو اطلب التعديلات."
-                                />
-
-                                <div className="mt-6 space-y-3">
-                                    {pendingApprovals.map((approval) => (
-                                        <Link
-                                            key={approval.title}
-                                            to="/client-approvals"
-                                            className="group flex items-center gap-3 rounded-2xl border border-slate-100 p-4 transition hover:border-[#5EA8CC]/20 hover:bg-[#F8FCFE]"
-                                        >
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                                                <PenLine size={18} />
-                                            </div>
-
-                                            <div className="min-w-0 flex-1">
-                                                <p className="truncate text-sm font-black text-slate-900">
-                                                    {approval.title}
-                                                </p>
-                                                <p className="mt-1 text-[11px] text-slate-400">{approval.type}</p>
-                                            </div>
-
-                                            <span className="text-[10px] font-bold text-slate-400">
-                                                {approval.date}
-                                            </span>
-
-                                            <ChevronLeft
-                                                size={16}
-                                                className="text-slate-300 group-hover:text-[#5EA8CC]"
-                                            />
-                                        </Link>
-                                    ))}
-                                </div>
-
-                                <Link to="/client-approvals" className={`mt-5 ${TOKENS.ctaDark}`}>
-                                    عرض جميع الموافقات
-                                    <ArrowLeft size={15} />
-                                </Link>
-                            </div>
-
-                            <div className={`${TOKENS.card} ${TOKENS.cardPad}`}>
-                                <SectionHeading
-                                    eyebrow="MEETINGS"
-                                    title="الاجتماعات القادمة"
-                                    description="تابع اجتماعاتك ومواعيد التواصل مع فريق SABARAT."
-                                />
-
-                                <div className="mt-6">
-                                    {upcomingMeetings.map((meeting) => (
-                                        <div
-                                            key={meeting.title}
-                                            className="rounded-2xl border border-[#5EA8CC]/15 bg-[#F8FCFE] p-5"
-                                        >
-                                            <div className="flex gap-4">
-                                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-[#5EA8CC] shadow-sm">
-                                                    <CalendarDays size={21} />
-                                                </div>
-
-                                                <div>
-                                                    <p className="text-sm font-black text-slate-900">
-                                                        {meeting.title}
-                                                    </p>
-                                                    <p className="mt-2 text-xs font-bold text-slate-500">
-                                                        {meeting.date}
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-slate-400">{meeting.time}</p>
-
-                                                    <span className="mt-3 inline-flex rounded-full bg-white px-3 py-1 text-[10px] font-black text-[#3D7895]">
-                                                        {meeting.type}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <Link to="/client-meetings" className={`mt-5 ${TOKENS.ctaOutline}`}>
-                                    إدارة الاجتماعات
-                                    <ArrowLeft size={15} />
-                                </Link>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        6. Services
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <div className="mb-5 flex items-end justify-between">
-                            <SectionHeading
-                                eyebrow="ACTIVE SERVICES"
-                                title="خدماتك"
-                                description="الخدمات الحالية والمتاحة ضمن مساحة العميل."
-                            />
-
-                            <Link
-                                to="/client-services"
-                                className="hidden items-center gap-2 text-xs font-black text-[#5EA8CC] sm:flex"
-                            >
-                                استعراض جميع الخدمات
-                                <ArrowLeft size={15} />
-                            </Link>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {services.map((service) => {
-                                const Icon = service.icon;
-
-                                return (
-                                    <Link
-                                        key={service.title}
-                                        to="/client-services"
-                                        className={`${TOKENS.card} ${TOKENS.cardPadSm} transition hover:-translate-y-1 hover:border-[#5EA8CC]/25`}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <div className={TOKENS.iconBox}>
-                                                <Icon size={20} />
-                                            </div>
-
-                                            <span
-                                                className={`rounded-full px-2.5 py-1 text-[9px] font-black ${
-                                                    service.status === "نشطة"
-                                                        ? "bg-emerald-50 text-emerald-600"
-                                                        : service.status === "قيد الإعداد"
-                                                        ? "bg-amber-50 text-amber-600"
-                                                        : "bg-slate-100 text-slate-500"
-                                                }`}
-                                            >
-                                                {service.status}
-                                            </span>
-                                        </div>
-
-                                        <p className="mt-5 text-[10px] font-black uppercase tracking-wider text-[#5EA8CC]">
-                                            {service.category}
-                                        </p>
-
-                                        <h3 className="mt-1 text-sm font-black text-slate-900">{service.title}</h3>
-
-                                        {service.progress > 0 && (
-                                            <div className="mt-5">
-                                                <div className="mb-2 flex justify-between">
-                                                    <span className="text-[10px] font-bold text-slate-400">
-                                                        التقدم
-                                                    </span>
-                                                    <span className="text-[10px] font-black text-[#5EA8CC]">
-                                                        {service.progress}%
-                                                    </span>
-                                                </div>
-
-                                                <ProgressBar value={service.progress} height="h-2" />
-                                            </div>
-                                        )}
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        7. Requirements
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <div className="mb-5 flex items-end justify-between">
-                            <SectionHeading
-                                eyebrow="PROJECT DISCOVERY"
-                                title="متطلبات المشروع"
-                                description="جميع المعلومات التي يحتاجها فريق SABARAT لفهم مشروعك."
-                            />
-
-                            <Link
-                                to="/client-discovery"
-                                className="hidden items-center gap-2 text-xs font-black text-[#5EA8CC] sm:flex"
-                            >
-                                فتح نموذج المتطلبات
-                                <ArrowLeft size={15} />
-                            </Link>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            {requirementSections.map((section) => {
-                                const Icon = section.icon;
-                                const complete = section.status === "مكتمل";
-
-                                return (
-                                    <Link
-                                        key={section.title}
-                                        to="/client-discovery"
-                                        className={`group ${TOKENS.card} ${TOKENS.cardPadSm} transition-all duration-300 hover:-translate-y-1 hover:border-[#5EA8CC]/30 hover:shadow-xl`}
-                                    >
-                                        <div className="flex items-start justify-between">
-                                            <div className={TOKENS.iconBox}>
-                                                <Icon size={20} />
-                                            </div>
-
-                                            <span
-                                                className={`rounded-full px-2 py-1 text-[9px] font-black ${
-                                                    complete
-                                                        ? "bg-emerald-50 text-emerald-600"
-                                                        : "bg-amber-50 text-amber-600"
-                                                }`}
-                                            >
-                                                {section.status}
-                                            </span>
-                                        </div>
-
-                                        <h3 className="mt-5 text-sm font-black text-slate-900">{section.title}</h3>
-                                        <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                                            {section.description}
-                                        </p>
-
-                                        <div className="mt-4">
-                                            <div className="mb-2 flex items-center justify-between">
-                                                <span className="text-[9px] font-bold text-slate-400">
-                                                    اكتمال القسم
-                                                </span>
-                                                <span className="text-[9px] font-black text-[#5EA8CC]">
-                                                    {section.progress}%
-                                                </span>
-                                            </div>
-
-                                            <ProgressBar value={section.progress} height="h-1.5" />
-                                        </div>
-
-                                        <div className="mt-4 flex items-center justify-between">
-                                            <span className="text-[10px] font-bold text-slate-400">
-                                                {section.items.length} عناصر
-                                            </span>
-
-                                            <ArrowLeft
-                                                size={15}
-                                                className="text-slate-300 transition group-hover:text-[#5EA8CC]"
-                                            />
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        8. Files + Communication
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <div className="grid gap-6 lg:grid-cols-2">
-                            <div className={`${TOKENS.card} ${TOKENS.cardPad}`}>
-                                <div className="flex items-start justify-between">
-                                    <SectionHeading
-                                        eyebrow="RECENT FILES"
-                                        title="آخر الملفات"
-                                        description="أحدث الملفات المضافة إلى مساحة مشروعك."
-                                    />
-
-                                    <Link to="/client-files" className="text-xs font-black text-[#5EA8CC]">
-                                        عرض الكل
-                                    </Link>
-                                </div>
-
-                                <div className="mt-6 space-y-3">
-                                    {recentFiles.map((file) => (
-                                        <div
-                                            key={file.name}
-                                            className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 hover:bg-slate-50"
-                                        >
-                                            <div className={TOKENS.iconBoxSm}>
-                                                <FileText size={18} />
-                                            </div>
-
-                                            <div className="min-w-0 flex-1">
-                                                <p className="truncate text-xs font-black text-slate-800">
-                                                    {file.name}
-                                                </p>
-                                                <p className="mt-1 text-[10px] text-slate-400">
-                                                    {file.type} • {file.size} • {file.date}
-                                                </p>
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                className="rounded-lg p-2 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
-                                            >
-                                                <MoreHorizontal size={17} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <Link
-                                    to="/client-files"
-                                    className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#5EA8CC]/30 bg-[#F8FCFE] px-4 py-3 text-xs font-black text-[#3D7895]"
-                                >
-                                    <Upload size={15} />
-                                    رفع ملف جديد
-                                </Link>
-                            </div>
-
-                            <div className={`${TOKENS.card} ${TOKENS.cardPad}`}>
-                                <SectionHeading
-                                    eyebrow="COMMUNICATION"
-                                    title="التواصل مع الفريق"
-                                    description="تواصل مباشرة مع فريق SABARAT المسؤول عن مشروعك."
-                                />
-
-                                <div className="mt-6 rounded-2xl bg-slate-950 p-6 text-white">
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#5EA8CC]/10 text-[#8ED4F5]">
-                                            <MessageCircle size={22} />
-                                        </div>
-
-                                        <div>
-                                            <p className="text-sm font-black">SABARAT Project Team</p>
-                                            <p className="mt-1 text-[11px] text-slate-400">
-                                                فريق المشروع متاح لمتابعة طلباتك.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6 flex items-center gap-2 text-[11px] font-bold text-emerald-400">
-                                        <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                                        الفريق متاح
-                                    </div>
-
-                                    <Link
-                                        to="/client-messages"
-                                        className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-black text-slate-950 transition hover:bg-[#EAF6FC]"
-                                    >
-                                        <Send size={15} />
-                                        فتح المحادثة
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        9. Timeline + Finance
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <div className="grid gap-6 lg:grid-cols-3">
-                            <div className={`${TOKENS.card} ${TOKENS.cardPad} lg:col-span-2`}>
-                                <SectionHeading
-                                    eyebrow="PROJECT TIMELINE"
-                                    title="مراحل تنفيذ المشروع"
-                                    description="تابع مشروعك خطوة بخطوة حتى التسليم النهائي."
-                                />
-
-                                <div className="mt-8 space-y-1">
-                                    {activities.map((activity, index) => {
-                                        const Icon = activity.icon;
-
-                                        return (
-                                            <div
-                                                key={activity.title}
-                                                className="relative flex gap-4 rounded-2xl p-4 transition hover:bg-slate-50"
-                                            >
-                                                {index < activities.length - 1 && (
-                                                    <div className="absolute right-[31px] top-16 h-[calc(100%-30px)] w-px bg-slate-100" />
-                                                )}
-
-                                                <div
-                                                    className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                                                        activity.completed
-                                                            ? "bg-[#5EA8CC] text-white"
-                                                            : "border border-slate-200 bg-white text-slate-400"
-                                                    }`}
-                                                >
-                                                    <Icon size={18} />
-                                                </div>
-
-                                                <div className="flex-1 pt-1">
-                                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                                        <p className="text-sm font-black text-slate-900">
-                                                            {activity.title}
-                                                        </p>
-                                                        <span className="text-[11px] font-bold text-[#5EA8CC]">
-                                                            {activity.date}
-                                                        </span>
-                                                    </div>
-
-                                                    <p className="mt-1 text-xs leading-6 text-slate-500">
-                                                        {activity.description}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            <div className={`${TOKENS.card} ${TOKENS.cardPad}`}>
-                                <SectionHeading
-                                    eyebrow="FINANCE"
-                                    title="المالية"
-                                    description="ملخص سريع للحالة المالية لحسابك."
-                                />
-
-                                <div className="mt-6 space-y-3">
-                                    <FinanceRow icon={FileText} label="العروض" value="0" to="/client-proposals" />
-                                    <FinanceRow icon={FileCheck2} label="العقود" value="1" to="/client-contracts" />
-                                    <FinanceRow
-                                        icon={Receipt}
-                                        label="الفواتير"
-                                        value={workspaceStats.invoices}
-                                        to="/client-invoices"
-                                    />
-                                    <FinanceRow
-                                        icon={CreditCard}
-                                        label="المبلغ المستحق"
-                                        value={workspaceStats.pendingAmount}
-                                        to="/client-payments"
-                                    />
-                                </div>
-
-                                <Link to="/client-invoices" className={`mt-5 ${TOKENS.ctaDark}`}>
-                                    فتح الإدارة المالية
-                                    <ArrowLeft size={15} />
-                                </Link>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        10. Performance Overview
-                    ================================================= */}
-
-                    <section className={TOKENS.section}>
-                        <SectionHeading
-                            eyebrow="PERFORMANCE"
-                            title="نظرة عامة على الخدمات"
-                            description="مؤشرات مختصرة تساعدك على متابعة أداء خدمات SABARAT."
-                        />
-
-                        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                            <PerformanceCard icon={TrendingUp} title="الحملات" value="0" label="حملات نشطة" />
-                            <PerformanceCard icon={Sparkles} title="المحتوى" value="0" label="محتويات قيد التنفيذ" />
-                            <PerformanceCard icon={Globe2} title="المواقع" value="0" label="مشاريع مواقع" />
-                            <PerformanceCard icon={Code2} title="الأنظمة" value="0" label="أنظمة قيد التطوير" />
-                        </div>
-                    </section>
-
-                    {/* =================================================
-                        11. Security
-                    ================================================= */}
-
-                    <section className={`${TOKENS.card} bg-slate-950 p-6 text-white sm:p-8`}>
-                        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                            <div className="flex items-start gap-4">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#5EA8CC]/10 text-[#5EA8CC]">
-                                    <ShieldCheck size={23} />
-                                </div>
-
-                                <div>
-                                    <h2 className="text-xl font-black">مساحة عميل آمنة</h2>
-                                    <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-400">
-                                        معلومات مشروعك وملفاتك ومحادثاتك وإجراءات الموافقة ستكون ضمن مساحة العميل
-                                        الخاصة بك.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-xs font-bold text-[#8ED4F5]">
-                                <CheckCircle2 size={15} />
-                                Client workspace protected
-                            </div>
-                        </div>
-                    </section>
-                </div>
-            </div>
+function safeRead(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeWrite(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Local demo storage is best-effort. Laravel becomes the source of truth.
+  }
+}
+
+function discoveryData() {
+  const d = { ...DEMO_DISCOVERY, ...safeRead(STORAGE.discovery, {}) };
+  return {
+    ...DEMO_DISCOVERY,
+    ...d,
+    audience: { ...DEMO_DISCOVERY.audience, ...(d.audience || {}) },
+    budget: { ...DEMO_DISCOVERY.budget, ...(d.budget || {}) },
+    additional: { ...(d.additional || {}) },
+    social: { ...(d.social || {}) },
+  };
+}
+
+function uid(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function now() {
+  return new Date().toLocaleString("ar-YE", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function initialProject(discovery) {
+  const serviceNames = discovery.services?.length ? discovery.services : DEMO_DISCOVERY.services;
+  return {
+    id: "local-demo-project",
+    reference: "SAB-PROJ-001",
+    companyApproved: false,
+    paymentCompleted: false,
+    paymentReview: false,
+    projectCreated: false,
+    status: STATUS.approval,
+    currentStage: "اعتماد المشروع",
+    nextStage: "الدفع وبدء العمل",
+    progress: 0,
+    completedTasks: 0,
+    totalContract: Number(discovery.budget?.to || 0) || 0,
+    currency: discovery.budget?.currency || "USD",
+    services: serviceNames.map((name, i) => ({
+      id: `service-${i}`,
+      name,
+      status: STATUS.approval,
+      progress: 0,
+      owner: "سيتم التعيين بعد الاعتماد",
+      updatedAt: "لم يبدأ",
+    })),
+    tasks: [],
+    approvals: [],
+    files: [],
+    notifications: [{
+      id: uid("notification"),
+      title: "تم استلام نموذج الاحتياج",
+      text: "تم حفظ طلبك وسيقوم فريق SABARAT بمراجعته.",
+      type: "info",
+      read: false,
+      time: "الآن",
+    }],
+    messages: [],
+    meetings: [],
+    invoices: [],
+    payments: [],
+    requests: [],
+    tickets: [],
+    activity: [{
+      id: uid("activity"),
+      title: "إرسال نموذج الاحتياج",
+      text: "تم إنشاء ملف العميل بنجاح.",
+      status: "مكتمل",
+      time: now(),
+    }],
+  };
+}
+
+function normalizeProject(saved, discovery) {
+  const base = initialProject(discovery);
+  if (!saved) return base;
+  return {
+    ...base,
+    ...saved,
+    services: saved.services || base.services,
+    tasks: saved.tasks || [],
+    approvals: saved.approvals || [],
+    files: saved.files || [],
+    notifications: saved.notifications || base.notifications,
+    messages: saved.messages || [],
+    meetings: saved.meetings || [],
+    invoices: saved.invoices || [],
+    payments: saved.payments || [],
+    requests: saved.requests || [],
+    tickets: saved.tickets || [],
+    activity: saved.activity || base.activity,
+  };
+}
+
+function calculate(project) {
+  if (!project.companyApproved) return { progress: 0, status: STATUS.approval, currentStage: "اعتماد المشروع", nextStage: "الدفع وبدء العمل" };
+  if (project.paymentReview) return { progress: 0, status: STATUS.paymentReview, currentStage: "مراجعة إثبات الدفع", nextStage: "تفعيل المشروع" };
+  if (!project.paymentCompleted) return { progress: 0, status: STATUS.payment, currentStage: "الدفع", nextStage: "بدء التخطيط" };
+  if (!project.projectCreated) return { progress: 0, status: STATUS.ready, currentStage: "جاهز للبدء", nextStage: "التخطيط" };
+  const tasks = project.tasks || [];
+  const done = tasks.filter((t) => t.status === "منجز").length;
+  const progress = tasks.length ? Math.round((done / tasks.length) * 100) : Number(project.progress || 0);
+  return {
+    progress,
+    status: project.status || STATUS.progress,
+    currentStage: project.currentStage || STATUS.progress,
+    nextStage: project.nextStage || "المراجعة",
+  };
+}
+
+/* ============================================================================
+   Laravel-ready API layer
+   ============================================================================ */
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+
+async function apiRequest(path, options = {}) {
+  if (!API_BASE) return { local: true };
+  const token = localStorage.getItem(STORAGE.token);
+  const headers = { Accept: "application/json", ...(options.headers || {}) };
+  if (!(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+async function syncDashboard(setProject, setSyncing) {
+  if (!API_BASE) return false;
+  setSyncing(true);
+  try {
+    const data = await apiRequest("/client/dashboard");
+    const serverProject = data?.project || data?.data?.project;
+    if (serverProject) setProject((p) => normalizeProject(serverProject, discoveryData()));
+    return true;
+  } catch (error) {
+    console.warn("SABARAT dashboard sync:", error);
+    return false;
+  } finally {
+    setSyncing(false);
+  }
+}
+
+/* ============================================================================
+   Main Page
+   ============================================================================ */
+
+export default function ClientDashboardPage() {
+  const discovery = useMemo(discoveryData, []);
+  const [section, setSection] = useState("overview");
+  const [open, setOpen] = useState(false);
+  const [project, setProject] = useState(() => normalizeProject(safeRead(STORAGE.project, null), discovery));
+  const [syncing, setSyncing] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => safeWrite(STORAGE.project, project), [project]);
+  useEffect(() => {
+    syncDashboard(setProject, setSyncing);
+  }, []);
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = setTimeout(() => setToast(null), 4500);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const state = calculate(project);
+  const unread = project.notifications.filter((n) => !n.read).length;
+  const pendingApprovals = project.approvals.filter((a) => a.status === "بانتظار الموافقة").length;
+
+  const select = (id) => {
+    setSection(id);
+    setOpen(false);
+  };
+
+  const pushNotification = (p, title, text, type = "info") => ({
+    ...p,
+    notifications: [{ id: uid("notification"), title, text, type, read: false, time: "الآن" }, ...(p.notifications || [])],
+  });
+
+  const addActivity = (p, title, text, status = "جديد") => ({
+    ...p,
+    activity: [{ id: uid("activity"), title, text, status, time: now() }, ...(p.activity || [])],
+  });
+
+  const submitPaymentReceipt = async ({
+    invoiceId, amount, method, reference, file, walletProvider, walletNumber,
+    senderName, bankName, transferDate, notes,
+  }) => {
+    if (!project.companyApproved) {
+      setToast({ type: "warning", text: "لا يمكن إرسال إثبات الدفع قبل اعتماد المشروع." });
+      return;
+    }
+    const paymentId = uid("payment");
+    const payment = {
+      id: paymentId,
+      invoiceId,
+      amount: Number(amount || 0),
+      method,
+      reference: reference || "",
+      status: "قيد المراجعة",
+      submittedAt: now(),
+      receipt: file ? { name: file.name, size: file.size, type: file.type } : null,
+      walletProvider: walletProvider || "",
+      walletNumber: walletNumber || "",
+      senderName: senderName || "",
+      bankName: bankName || "",
+      transferDate: transferDate || "",
+      notes: notes || "",
+    };
+
+    setProject((p) => {
+      let next = { ...p, payments: [payment, ...(p.payments || [])], paymentReview: true, status: STATUS.paymentReview };
+      next = pushNotification(next, "تم إرسال إثبات الدفع", `تم استلام إثبات الدفع بمبلغ ${Number(amount || 0).toLocaleString()} ${p.currency} وسيتم مراجعته من الإدارة.`, "payment");
+      return addActivity(next, "إرسال إثبات دفع", "تم إرسال العملية للإدارة للمراجعة.", "قيد المراجعة");
+    });
+
+    if (API_BASE) {
+      try {
+        const form = new FormData();
+        form.append("invoice_id", invoiceId || "");
+        form.append("amount", String(amount || 0));
+        form.append("method", method || "");
+        form.append("reference", reference || "");
+        form.append("wallet_provider", walletProvider || "");
+        form.append("wallet_number", walletNumber || "");
+        form.append("sender_name", senderName || "");
+        form.append("bank_name", bankName || "");
+        form.append("transfer_date", transferDate || "");
+        form.append("notes", notes || "");
+        if (file) form.append("receipt", file);
+        await apiRequest("/client/payments/receipt", { method: "POST", body: form });
+        setToast({ type: "success", text: "تم إرسال إثبات الدفع إلى إدارة SABARAT بنجاح." });
+      } catch (error) {
+        setToast({ type: "error", text: "تم حفظ العملية محليًا، لكن تعذر إرسالها للخادم. تحقق من Laravel API." });
+        console.error(error);
+      }
+    } else {
+      setToast({ type: "success", text: "تم تسجيل إثبات الدفع في الوضع التجريبي. عند تشغيل Laravel سيصل للإدارة تلقائيًا." });
+    }
+  };
+
+  const sendMessage = async (text, attachment) => {
+    if (!text.trim() && !attachment) return;
+    const message = { id: uid("message"), sender: "client", text: text.trim(), time: now(), attachment: attachment ? { name: attachment.name, size: attachment.size } : null };
+    setProject((p) => addActivity({ ...p, messages: [...(p.messages || []), message] }, "رسالة جديدة", "تم إرسال رسالة إلى فريق SABARAT.", "مرسل"));
+    if (API_BASE) {
+      try {
+        await apiRequest("/client/messages", { method: "POST", body: JSON.stringify({ text: text.trim() }) });
+      } catch (error) {
+        console.error(error);
+        setToast({ type: "error", text: "تعذر مزامنة الرسالة مع Laravel." });
+      }
+    }
+  };
+
+  const approval = async (id, action, note) => {
+    const status = action === "approve" ? "تمت الموافقة" : "يحتاج تعديل";
+    setProject((p) => {
+      const approvals = p.approvals.map((a) => a.id === id ? { ...a, status, clientNote: note, updatedAt: now() } : a);
+      let next = { ...p, approvals };
+      next = pushNotification(next, action === "approve" ? "تم اعتماد التسليم" : "تم طلب تعديل", action === "approve" ? "تم إرسال موافقتك للفريق." : "تم إرسال ملاحظات التعديل للفريق.", action === "approve" ? "success" : "warning");
+      return addActivity(next, action === "approve" ? "اعتماد تسليم" : "طلب تعديل", note || "تم تحديث حالة التسليم.", status);
+    });
+    if (API_BASE) {
+      try {
+        await apiRequest(`/client/approvals/${id}/${action === "approve" ? "approve" : "revision"}`, { method: "POST", body: JSON.stringify({ note }) });
+      } catch (error) {
+        console.error(error);
+        setToast({ type: "error", text: "تعذر مزامنة قرار الموافقة مع الخادم." });
+      }
+    }
+  };
+
+  const createRequest = async ({ title, description, priority }) => {
+    const request = { id: uid("request"), title, description, priority, status: "قيد المراجعة", createdAt: now() };
+    setProject((p) => pushNotification({ ...p, requests: [request, ...(p.requests || [])] }, "طلب إضافي جديد", title));
+    if (API_BASE) await apiRequest("/client/requests", { method: "POST", body: JSON.stringify({ title, description, priority }) }).catch(console.error);
+    setToast({ type: "success", text: "تم إرسال الطلب إلى إدارة SABARAT." });
+  };
+
+  const createTicket = async ({ subject, description, priority }) => {
+    const ticket = { id: uid("ticket"), subject, description, priority, status: "مفتوحة", createdAt: now() };
+    setProject((p) => pushNotification({ ...p, tickets: [ticket, ...(p.tickets || [])] }, "تم فتح تذكرة دعم", subject));
+    if (API_BASE) await apiRequest("/client/tickets", { method: "POST", body: JSON.stringify({ subject, description, priority }) }).catch(console.error);
+    setToast({ type: "success", text: "تم فتح تذكرة الدعم بنجاح." });
+  };
+
+  const uploadFile = async (file, category = "client") => {
+    if (!file) return;
+    const meta = { id: uid("file"), name: file.name, size: formatBytes(file.size), type: file.type || "ملف", category, uploadedAt: now(), status: "تم الرفع" };
+    setProject((p) => pushNotification({ ...p, files: [meta, ...(p.files || [])] }, "تم رفع ملف جديد", file.name));
+    if (API_BASE) {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("category", category);
+      try { await apiRequest("/client/files", { method: "POST", body: form }); }
+      catch (error) { console.error(error); setToast({ type: "error", text: "تعذر رفع الملف إلى Laravel." }); }
+    }
+    setToast({ type: "success", text: `تم رفع ${file.name} بنجاح.` });
+  };
+
+  const deleteFile = async (id) => {
+    const target = project.files.find((file) => file.id === id);
+    if (!target) return;
+
+    setProject((p) => ({
+      ...p,
+      files: p.files.filter((file) => file.id !== id),
+      notifications: [
+        {
+          id: uid("notification"),
+          title: "تم حذف ملف",
+          text: `تم حذف الملف ${target.name} من مساحة العميل.`,
+          type: "info",
+          read: false,
+          time: "الآن",
+        },
+        ...(p.notifications || []),
+      ],
+      activity: [
+        {
+          id: uid("activity"),
+          title: "حذف ملف",
+          text: `تم حذف ${target.name}.`,
+          status: "تم الحذف",
+          time: now(),
+        },
+        ...(p.activity || []),
+      ],
+    }));
+
+    if (API_BASE) {
+      try {
+        await apiRequest(`/client/files/${id}`, { method: "DELETE" });
+      } catch (error) {
+        console.error(error);
+        setToast({ type: "error", text: "تم الحذف محليًا، لكن تعذر مزامنته مع Laravel." });
+        return;
+      }
+    }
+
+    setToast({ type: "success", text: `تم حذف ${target.name} بنجاح.` });
+  };
+
+  const markNotificationRead = async (id) => {
+    setProject((p) => ({ ...p, notifications: p.notifications.map((n) => n.id === id ? { ...n, read: true } : n) }));
+    if (API_BASE) await apiRequest(`/client/notifications/${id}/read`, { method: "POST" }).catch(console.error);
+  };
+
+  return (
+    <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-900 selection:bg-sky-100">
+      <style>{DASHBOARD_STYLES}</style>
+
+      <header className="sticky top-0 z-50 h-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+        <div className="flex h-full items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setOpen(true)} className="rounded-xl p-2 hover:bg-sky-50 lg:hidden" aria-label="فتح القائمة"><Menu size={22}/></button>
+            <div className="brand-mark">S</div>
+            <div><b className="tracking-tight">SABARAT</b><p className="text-xs text-slate-500">بوابة العميل الذكية</p></div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={() => syncDashboard(setProject, setSyncing)} className="hidden rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:border-sky-300 hover:text-sky-600 sm:block" title="مزامنة البيانات">
+              <RefreshCw size={18} className={syncing ? "animate-spin" : ""}/>
+            </button>
+            <div className="hidden text-left sm:block"><p className="text-sm font-black">{discovery.companyName}</p><p className="text-xs text-slate-500">{discovery.contactName}</p></div>
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-sky-50 text-sky-600"><User size={19}/>{unread > 0 && <span className="notification-dot">{unread > 9 ? "9+" : unread}</span>}</div>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex">
+        <Sidebar open={open} onClose={() => setOpen(false)} section={section} select={select} discovery={discovery} unread={unread} pending={pendingApprovals} status={state.status}/>
+        {open && <button onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden" aria-label="إغلاق القائمة"/>}
+
+        <main className="min-w-0 flex-1">
+          <div className="mx-auto max-w-[1600px] p-4 sm:p-6 lg:p-8">
+            {section === "overview" && <Overview discovery={discovery} project={project} state={state} pending={pendingApprovals} select={select}/>} 
+            {section === "progress" && <Progress project={project} state={state} discovery={discovery}/>} 
+            {section === "services" && <Services services={project.services}/>} 
+            {section === "tasks" && <Tasks tasks={project.tasks}/>} 
+            {section === "approvals" && <Approvals approvals={project.approvals} onApproval={approval}/>} 
+            {section === "files" && <Files files={project.files} onUpload={uploadFile} onDelete={deleteFile}/>} 
+            {section === "notifications" && <Notifications notifications={project.notifications} onRead={markNotificationRead}/>} 
+            {section === "messages" && <Messages messages={project.messages} send={sendMessage}/>} 
+            {section === "meetings" && <Meetings meetings={project.meetings}/>} 
+            {section === "invoices" && <Payments project={project} discovery={discovery} onSubmitPayment={submitPaymentReceipt}/>} 
+            {section === "requests" && <Requests requests={project.requests} onCreate={createRequest}/>} 
+            {section === "support" && <Support tickets={project.tickets} onCreate={createTicket}/>} 
+            {section === "company" && <Company discovery={discovery}/>} 
+          </div>
         </main>
-    );
+      </div>
+
+      {toast && <Toast {...toast} onClose={() => setToast(null)}/>} 
+    </div>
+  );
 }
 
-// =====================================================
-// Progress Bar
-// =====================================================
+/* ============================================================================
+   Sidebar
+   ============================================================================ */
 
-function ProgressBar({ value, height = "h-3" }) {
-    return (
-        <div className={`${height} overflow-hidden rounded-full bg-slate-100`}>
-            <div
-                className="h-full rounded-full bg-gradient-to-r from-[#5EA8CC] to-[#8ED4F5]"
-                style={{ width: `${value}%` }}
-            />
-        </div>
-    );
+function Sidebar({ open, onClose, section, select, discovery, unread, pending, status }) {
+  return <aside className={`fixed right-0 top-0 z-[60] h-screen w-[292px] border-l border-slate-200 bg-white transition-transform lg:sticky lg:top-20 lg:z-30 lg:h-[calc(100vh-5rem)] lg:translate-x-0 ${open ? "translate-x-0" : "translate-x-full"}`}>
+    <div className="flex h-full flex-col">
+      <div className="border-b border-slate-200 p-5">
+        <div className="flex items-center justify-between"><div><p className="text-xs font-black tracking-[.2em] text-sky-600">SABARAT</p><p className="font-black">مساحة العميل</p></div><button onClick={onClose} className="lg:hidden"><X size={18}/></button></div>
+        <div className="mt-5 rounded-2xl bg-slate-50 p-4"><div className="flex items-center gap-3"><div className="avatar"><User size={18}/></div><div className="min-w-0"><p className="truncate text-sm font-black">{discovery.companyName}</p><p className="truncate text-xs text-slate-500">{discovery.contactName}</p></div></div><div className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-500"><span className="h-2 w-2 rounded-full bg-amber-500"/>{status}</div></div>
+      </div>
+      <nav className="flex-1 overflow-y-auto p-4">{NAV.map(([id,label,Icon]) => { const badge=id==="notifications"?unread:id==="approvals"?pending:0; return <button key={id} onClick={() => select(id)} className={`mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition ${section===id?"bg-sky-50 text-sky-700 shadow-sm":"text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}><Icon size={18}/><span className="flex-1 text-right">{label}</span>{badge>0&&<span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] text-white">{badge}</span>}</button>})}</nav>
+      <div className="border-t border-slate-200 p-4"><button className="mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50"><Settings size={18}/>إعدادات الحساب</button><button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50"><LogOut size={18}/>تسجيل الخروج</button></div>
+    </div>
+  </aside>;
 }
 
-// =====================================================
-// Section Heading
-// =====================================================
+/* ============================================================================
+   Overview / Analytics
+   ============================================================================ */
 
-function SectionHeading({ eyebrow, title, description }) {
-    return (
-        <div>
-            <p className={TOKENS.eyebrow}>{eyebrow}</p>
-            <h2 className="mt-2 text-xl font-black text-slate-950">{title}</h2>
+function Overview({ discovery, project, state, pending, select }) {
+  const done = project.tasks.filter(t=>t.status==="منجز").length;
+  const remaining = Math.max(project.tasks.length-done,0);
+  const total = project.invoices.reduce((s,i)=>s+Number(i.total||0),0);
+  const paid = project.invoices.reduce((s,i)=>s+Number(i.paid||0),0);
+  return <div className="space-y-6 animate-enter">
+    <div className="hero-card"><div className="relative z-10"><p className="text-xs font-black tracking-[.2em] text-sky-600">لوحة العميل • {project.reference}</p><h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">مرحبًا {discovery.contactName} 👋</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-slate-500">من هنا تتابع مشروعك بالكامل: الموافقات، الدفع، المهام، الملفات، الرسائل، الاجتماعات والتسليمات — وكل تحديث يصل إليك ويظهر لفريق SABARAT.</p><div className="mt-6 flex flex-wrap gap-3"><span className="glass-pill"><Zap size={15}/> {state.currentStage}</span><span className="glass-pill"><TrendingUp size={15}/> {state.progress}% إنجاز</span></div></div><div className="hero-orb"><Sparkles size={38}/></div></div>
 
-            {description && (
-                <p className="mt-2 text-xs leading-6 text-slate-500">{description}</p>
-            )}
-        </div>
-    );
+    {!project.companyApproved && <Gate title="المشروع بانتظار اعتماد SABARAT" text="تم استلام نموذج الاحتياج. بعد اعتماد الإدارة ستظهر الفاتورة وخيارات الدفع ويمكنك إرسال إثبات الدفع من هذه البوابة." tone="warning"/>}
+    {project.companyApproved && !project.paymentCompleted && !project.paymentReview && <Gate title="تم اعتماد المشروع — الخطوة التالية الدفع" text="أصبح المشروع جاهزًا للانتقال إلى مرحلة الدفع. بعد إرسال إثبات الدفع تتم مراجعته من الإدارة ثم يتم تفعيل المشروع." tone="primary" action={<button onClick={()=>select("invoices")} className="primary-btn">فتح الدفع والفاتورة <ArrowLeft size={17}/></button>}/>} 
+    {project.paymentReview && <Gate title="إثبات الدفع قيد المراجعة" text="تم إرسال العملية بنجاح. لا تحتاج إلى إعادة الإرسال ما لم تطلب الإدارة ذلك." tone="primary" action={<button onClick={()=>select("notifications")} className="secondary-btn">عرض التحديثات</button>}/>} 
+    {project.paymentCompleted && <Gate title="المشروع مفعل ✓" text="تم اعتماد الدفع ويمكن لفريق SABARAT متابعة التخطيط والتنفيذ وفق سير العمل." tone="success"/>}
+
+    <div className="grid gap-5 xl:grid-cols-12">
+      <div className="xl:col-span-7"><AnalyticsCard project={project} state={state}/></div>
+      <div className="xl:col-span-5"><ProgressCard progress={state.progress} status={state.status}/></div>
+    </div>
+
+    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <Stat icon={Sparkles} label="الخدمات المطلوبة" value={project.services.length}/>
+      <Stat icon={CheckCircle2} label="المهام المنجزة" value={done}/>
+      <Stat icon={Clock3} label="المهام المتبقية" value={remaining}/>
+      <Stat icon={CreditCard} label="المدفوع" value={`${paid.toLocaleString()} ${project.currency}`}/>
+    </div>
+
+    <div className="grid gap-5 lg:grid-cols-2"><Stages project={project} state={state}/><ActivityFeed activity={project.activity}/></div>
+
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-xs font-black text-sky-600">الوصول السريع</p><h3 className="mt-1 text-xl font-black">كل ما تحتاجه في مكان واحد</h3></div><span className="text-xs font-bold text-slate-400">إجمالي العقود: {total.toLocaleString()} {project.currency}</span></div><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[["services","الخدمات",Sparkles],["tasks","المهام",ClipboardCheck],["approvals","الموافقات",FileCheck2],["invoices","الدفع والفواتير",WalletCards]].map(([id,label,Icon])=><button key={id} onClick={()=>select(id)} className="quick-btn"><Icon size={18} className="text-sky-600"/>{label}</button>)}</div>{pending>0&&<p className="mt-4 text-xs font-bold text-amber-600">لديك {pending} تسليم يحتاج إلى موافقتك.</p>}</div>
+  </div>;
 }
 
-// =====================================================
-// Project Meta
-// =====================================================
+function AnalyticsCard({ project }) {
+  const values = project.activity.slice(0,7).reverse().map((_,i)=>Math.max(8, Math.round((project.progress||0)*((i+1)/7))));
+  while(values.length<7) values.unshift(0);
+  return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-xs font-black text-sky-600">تحليلات المشروع</p><h3 className="mt-1 text-xl font-black">مؤشر الإنجاز</h3></div><span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700"><TrendingUp size={14} className="inline"/> مباشر</span></div><div className="mt-8 h-52"><MiniLineChart values={values}/></div><div className="mt-5 grid grid-cols-3 gap-3"><Metric label="الإنجاز" value={`${project.progress||0}%`}/><Metric label="الخدمات" value={project.services.length}/><Metric label="التسليمات" value={project.approvals.length}/></div></div>;
+}
 
-function ProjectMeta({ icon: Icon, label, value }) {
-    return (
-        <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
-            <div className="flex items-center gap-2 text-[#5EA8CC]">
-                <Icon size={15} />
-                <span className="text-[10px] font-black text-slate-400">{label}</span>
+function MiniLineChart({ values }) {
+  const max=Math.max(...values,100), min=Math.min(...values,0); const points=values.map((v,i)=>`${(i/(values.length-1||1))*100},${100-((v-min)/(max-min||1))*82-8}`).join(" ");
+  return <div className="relative h-full"><div className="absolute inset-0 flex flex-col justify-between">{[1,2,3,4].map(i=><div key={i} className="border-t border-dashed border-slate-100"/>)}</div><svg viewBox="0 0 100 100" preserveAspectRatio="none" className="relative h-full w-full overflow-visible"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#38bdf8" stopOpacity=".25"/><stop offset="1" stopColor="#38bdf8" stopOpacity="0"/></linearGradient></defs><polygon points={`0,100 ${points} 100,100`} fill="url(#area)"/><polyline points={points} fill="none" stroke="#0284c7" strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round"/></svg></div>;
+}
+
+function ProgressCard({ progress, status }) { return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><div><p className="text-xs font-black text-sky-600">الحالة الحالية</p><h3 className="mt-1 text-xl font-black">نسبة الإنجاز</h3></div><Activity size={20} className="text-sky-600"/></div><Ring progress={progress} status={status}/></div>; }
+
+/* ============================================================================
+   Sections
+   ============================================================================ */
+
+function Progress({ project, state }) { return <div className="space-y-6 animate-enter"><Title eyebrow="تقدم المشروع" title="تقدم مشروعك" text="يتم احتساب الإنجاز من المهام المسجلة واعتمادات الفريق، وليس من إدخال العميل فقط."/><div className="grid gap-5 lg:grid-cols-3"><ProgressCard progress={state.progress} status={state.status}/><div className="lg:col-span-2"><ServiceList services={project.services}/></div></div><Status project={project} state={state}/><ActivityFeed activity={project.activity}/></div>; }
+
+function Services({ services }) { return <div className="space-y-6 animate-enter"><Title eyebrow="الخدمات" title="الخدمات المطلوبة" text="كل خدمة مرتبطة بالمشروع وتظهر حالتها ونسبة إنجازها والمسؤول عنها."/><div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{services.map(s=><div key={s.id} className="service-card"><div className="flex gap-4"><div className="icon-box"><Sparkles size={20}/></div><div><h3 className="font-black">{s.name}</h3><p className="mt-1 text-xs text-slate-500">المسؤول: {s.owner}</p></div></div><div className="mt-6 flex justify-between text-xs font-black"><span>الإنجاز</span><span>{s.progress}%</span></div><div className="mt-2"><Bar value={s.progress}/></div><div className="mt-4 flex justify-between"><Badge text={s.status}/><span className="text-xs text-slate-400">{s.updatedAt}</span></div></div>)}</div></div>; }
+
+function Tasks({ tasks }) { const groups=["منجز","قيد التنفيذ","بانتظار العميل"]; return <div className="space-y-6 animate-enter"><Title eyebrow="المهام والتسليمات" title="المهام" text="المهام مصدر أساسي لاحتساب تقدم المشروع. لا يتغير الإنجاز إلا من خلال حالة المهمة."/><div className="grid gap-5 lg:grid-cols-3">{groups.map(g=><div key={g} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex justify-between"><h3 className="font-black">{g}</h3><span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-black">{tasks.filter(t=>t.status===g).length}</span></div><div className="mt-5 space-y-3">{tasks.filter(t=>t.status===g).map(t=><div key={t.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-start gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-sky-500"/><div><p className="font-bold">{t.title}</p><p className="mt-1 text-xs leading-5 text-slate-500">{t.description}</p>{t.dueDate&&<p className="mt-2 text-[11px] font-bold text-slate-400">التسليم: {t.dueDate}</p>}</div></div></div>)}{!tasks.filter(t=>t.status===g).length&&<Empty title="لا توجد مهام" text="لا توجد عناصر في هذه المرحلة."/>}</div></div>)}</div></div>; }
+
+function Approvals({ approvals, onApproval }) { const [notes,setNotes]=useState({}); return <div className="space-y-6 animate-enter"><Title eyebrow="الموافقات" title="مراجعة التسليمات" text="أي اعتماد أو طلب تعديل ينتقل إلى إدارة SABARAT ويظهر في سجل المشروع."/><div className="space-y-4">{approvals.length?approvals.map(a=><div key={a.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex flex-col gap-3 md:flex-row md:justify-between"><div><h3 className="font-black">{a.title}</h3><p className="mt-2 text-sm leading-7 text-slate-500">{a.description}</p></div><Badge text={a.status}/></div>{a.status==="بانتظار الموافقة"&&<div className="mt-5"><textarea value={notes[a.id]||""} onChange={e=>setNotes({...notes,[a.id]:e.target.value})} rows={3} placeholder="ملاحظات أو تعديلات (اختياري)" className="field"/><div className="mt-3 flex flex-wrap gap-3"><button onClick={()=>onApproval(a.id,"approve",notes[a.id]||"")} className="success-btn"><Check size={17}/> اعتماد التسليم</button><button onClick={()=>onApproval(a.id,"revision",notes[a.id]||"")} className="warning-btn">طلب تعديل</button></div></div>}{a.clientNote&&<div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600"><b>ملاحظتك:</b> {a.clientNote}</div>}</div>):<Empty title="لا توجد موافقات" text="ستظهر التسليمات التي تحتاج موافقتك هنا."/>}</div></div>; }
+
+function Files({ files, onUpload, onDelete }) {
+  const inputId = "client-file-upload";
+  const [deleting, setDeleting] = useState(null);
+
+  const handleDelete = async (file) => {
+    if (!window.confirm(`هل أنت متأكد من حذف الملف "${file.name}"؟`)) return;
+    setDeleting(file.id);
+    try {
+      await onDelete(file.id);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-enter">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <Title
+          eyebrow="الملفات"
+          title="الملفات والمستندات"
+          text="ارفع الهوية البصرية، المحتوى، المستندات أو أي ملفات يحتاجها فريق المشروع. يمكنك حذف الملفات التي رفعتها من مساحة العميل."
+        />
+        <label htmlFor={inputId} className="primary-btn cursor-pointer">
+          <UploadCloud size={18} />
+          رفع ملفات
+          <input
+            id={inputId}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              Array.from(e.target.files || []).forEach((file) => onUpload(file, "client"));
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Money label="عدد الملفات" value={files.length} />
+        <Money label="ملفات العميل" value={files.filter((file) => file.category === "client").length} />
+        <Money label="آخر تحديث" value={files[0]?.uploadedAt || "لا يوجد"} />
+      </div>
+
+      <div className="space-y-3">
+        {files.length ? files.map((file) => (
+          <div key={file.id} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
+            <div className="icon-box"><FileText size={19} /></div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-black">{file.name}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {file.type} • {file.size} • {file.uploadedAt}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Badge text={file.status || "تم الرفع"} />
+                {file.category && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-500">{file.category}</span>}
+              </div>
             </div>
-
-            <p className="mt-2 text-xs font-black text-slate-700">{value}</p>
-        </div>
-    );
+            <div className="flex items-center gap-2">
+              {file.url && (
+                <a href={file.url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 p-3 hover:bg-slate-50" title="فتح الملف">
+                  <Eye size={17} />
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => handleDelete(file)}
+                disabled={deleting === file.id}
+                className="rounded-xl border border-red-100 p-3 text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+                title="حذف الملف"
+              >
+                {deleting === file.id ? <Loader2 size={17} className="animate-spin" /> : <Trash2 size={17} />}
+              </button>
+            </div>
+          </div>
+        )) : <Empty title="لا توجد ملفات" text="ابدأ برفع أول ملف للمشروع." />}
+      </div>
+    </div>
+  );
 }
 
-// =====================================================
-// Dashboard Stat
-// =====================================================
+function Notifications({ notifications, onRead }) { return <div className="space-y-6 animate-enter"><Title eyebrow="الإشعارات" title="مركز الإشعارات" text="كل اعتماد أو دفع أو تحديث من الإدارة يظهر هنا."/><div className="space-y-3">{notifications.map(n=><button key={n.id} onClick={()=>onRead(n.id)} className={`w-full rounded-2xl border bg-white p-5 text-right shadow-sm transition hover:-translate-y-0.5 ${n.read?"border-slate-200":"border-sky-300 bg-sky-50/40"}`}><div className="flex gap-4"><span className={`mt-2 h-2.5 w-2.5 rounded-full ${n.read?"bg-slate-300":"bg-sky-500"}`}/><div className="flex-1"><div className="flex justify-between gap-3"><p className="font-black">{n.title}</p><span className="text-xs text-slate-400">{n.time}</span></div><p className="mt-1 text-sm leading-6 text-slate-500">{n.text}</p></div></div></button>)}</div></div>; }
 
-function DashboardStat({ icon: Icon, label, value, description, accent }) {
-    return (
-        <section
-            className={`group ${TOKENS.card} p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#5EA8CC]/20 ${
-                accent ? "ring-1 ring-[#5EA8CC]/15" : ""
-            }`}
-        >
-            <div className="flex items-center justify-between">
-                <div className={TOKENS.iconBox}>
-                    <Icon size={20} />
+function Messages({ messages, send }) { const [text,setText]=useState(""); const [file,setFile]=useState(null); const submit=()=>{send(text,file);setText("");setFile(null)}; return <div className="space-y-6 animate-enter"><Title eyebrow="الرسائل" title="التواصل مع الفريق" text="محادثة المشروع مرتبطة مستقبلاً مباشرة بـ Laravel وقاعدة البيانات."/><div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="min-h-[440px] space-y-4 p-5">{messages.length?messages.map(m=><div key={m.id} className={m.sender==="client"?"text-right":"text-left"}><span className={`inline-block max-w-[85%] rounded-2xl px-4 py-3 text-sm ${m.sender==="client"?"bg-sky-50 text-slate-800":"bg-slate-900 text-white"}`}>{m.text}{m.attachment&&<div className="mt-2 rounded-lg bg-black/5 p-2 text-xs"><Paperclip size={13} className="inline"/> {m.attachment.name}</div>}<small className="mt-1 block opacity-50">{m.time}</small></span></div>):<Empty title="لا توجد محادثات" text="ابدأ بإرسال رسالة إلى فريق SABARAT."/>}</div><div className="border-t border-slate-200 p-4"><div className="flex gap-3"><label className="cursor-pointer rounded-xl border border-slate-200 p-3"><Paperclip size={17}/><input type="file" className="hidden" onChange={e=>setFile(e.target.files?.[0]||null)}/></label><input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder={file?`مرفق: ${file.name}`:"اكتب رسالتك..."} className="field flex-1"/><button onClick={submit} className="primary-btn px-5"><Send size={18}/></button></div></div></div></div>; }
+
+function Meetings({ meetings }) { return <div className="space-y-6 animate-enter"><Title eyebrow="الاجتماعات" title="اجتماعات المشروع" text="المواعيد وروابط الاجتماعات وملاحظاتها."/><div className="grid gap-5 md:grid-cols-2">{meetings.length?meetings.map(m=><div key={m.id} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex gap-4"><div className="icon-box"><CalendarDays size={20}/></div><div><h3 className="font-black">{m.title}</h3><p className="mt-1 text-sm text-slate-500">{m.date}</p></div></div>{m.link&&<a href={m.link} target="_blank" rel="noreferrer" className="primary-btn mt-5 inline-flex">دخول الاجتماع</a>}{m.notes&&<p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-500">{m.notes}</p>}</div>):<Empty title="لا توجد اجتماعات" text="سيظهر الاجتماع القادم هنا."/>}</div></div>; }
+
+function Payments({ project, discovery, onSubmitPayment }) {
+  const [invoice, setInvoice] = useState(project.invoices[0] || null);
+  const [amount, setAmount] = useState(project.invoices[0]?.total || project.totalContract || "");
+  const [method, setMethod] = useState("تحويل بنكي");
+  const [reference, setReference] = useState("");
+  const [file, setFile] = useState(null);
+  const [walletProvider, setWalletProvider] = useState("");
+  const [walletNumber, setWalletNumber] = useState("");
+  const [senderName, setSenderName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [transferDate, setTransferDate] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const total = project.invoices.reduce((s, i) => s + Number(i.total || 0), 0) || Number(project.totalContract || 0);
+  const paid = project.invoices.reduce((s, i) => s + Number(i.paid || 0), 0) + project.payments.filter((p) => p.status === "تم الدفع").reduce((s, p) => s + Number(p.amount || 0), 0);
+  const remaining = Math.max(total - paid, 0);
+
+  const paymentPayload = {
+    invoiceId: invoice?.id,
+    amount,
+    method,
+    reference,
+    file,
+    walletProvider,
+    walletNumber,
+    senderName,
+    bankName,
+    transferDate,
+    notes,
+  };
+
+  return (
+    <div className="space-y-6 animate-enter">
+      <Title
+        eyebrow="الفواتير والدفع"
+        title="الدفع والفواتير"
+        text="أرسل دفعتك من خلال محفظة إلكترونية أو حوالة بنكية أو وسيلة أخرى، وأرفق إثبات الدفع ليتم مراجعته واعتماده من الإدارة."
+      />
+
+      {!project.companyApproved && <Gate title="الدفع غير متاح" text="انتظر اعتماد المشروع من إدارة SABARAT." tone="warning" />}
+      {project.companyApproved && project.paymentReview && <Gate title="إثبات الدفع قيد المراجعة" text="تم إرسال العملية للإدارة. لا تعِد إرسالها إلا إذا طلبت الإدارة ذلك." tone="primary" />}
+      {project.companyApproved && !project.paymentCompleted && !project.paymentReview && (
+        <PaymentForm
+          invoice={invoice}
+          amount={amount}
+          setAmount={setAmount}
+          method={method}
+          setMethod={setMethod}
+          reference={reference}
+          setReference={setReference}
+          file={file}
+          setFile={setFile}
+          walletProvider={walletProvider}
+          setWalletProvider={setWalletProvider}
+          walletNumber={walletNumber}
+          setWalletNumber={setWalletNumber}
+          senderName={senderName}
+          setSenderName={setSenderName}
+          bankName={bankName}
+          setBankName={setBankName}
+          transferDate={transferDate}
+          setTransferDate={setTransferDate}
+          notes={notes}
+          setNotes={setNotes}
+          maxAmount={remaining}
+          onSubmit={() => onSubmitPayment(paymentPayload)}
+        />
+      )}
+
+      <div className="grid gap-5 md:grid-cols-3">
+        <Money label="إجمالي العقد والفواتير" value={`${total.toLocaleString()} ${discovery.budget?.currency || project.currency}`} />
+        <Money label="إجمالي المدفوع" value={`${paid.toLocaleString()} ${project.currency}`} />
+        <Money label="المبلغ المتبقي" value={`${remaining.toLocaleString()} ${project.currency}`} />
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="font-black">الفواتير</h3>
+          <Badge text={project.paymentCompleted ? "تم الدفع" : project.paymentReview ? "قيد المراجعة" : project.companyApproved ? "بانتظار الدفع" : "لم تصدر بعد"} />
+        </div>
+        {project.invoices.length ? project.invoices.map((item) => (
+          <div key={item.id} className="mt-4 flex flex-wrap items-center gap-4 border-b border-slate-100 py-4 last:border-0">
+            <div className="flex-1"><b>{item.number}</b><p className="text-xs text-slate-500">{item.date}</p></div>
+            <b>{Number(item.total || 0).toLocaleString()} {item.currency || project.currency}</b>
+            <Badge text={item.status || "مفتوحة"} />
+          </div>
+        )) : <div className="mt-5"><Empty title="لا توجد فواتير" text="ستظهر الفواتير بعد اعتماد المشروع من الإدارة." /></div>}
+      </div>
+
+      {project.payments.length > 0 && (
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="font-black">سجل عمليات الدفع</h3>
+          <div className="mt-4 space-y-3">
+            {project.payments.map((payment) => (
+              <div key={payment.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  {payment.method === "محفظة إلكترونية" ? <Wallet size={18} className="text-sky-600" /> : <Landmark size={18} className="text-sky-600" />}
+                  <div className="flex-1">
+                    <b>{Number(payment.amount || 0).toLocaleString()} {project.currency}</b>
+                    <p className="text-xs text-slate-500">{payment.method} • {payment.submittedAt}</p>
+                  </div>
+                  <Badge text={payment.status} />
                 </div>
-
-                <MoreHorizontal size={18} className="text-slate-300" />
-            </div>
-
-            <p className="mt-5 text-3xl font-black text-slate-950">{value}</p>
-            <p className="mt-1 text-sm font-black text-slate-700">{label}</p>
-            <p className="mt-2 text-[11px] text-slate-400">{description}</p>
-        </section>
-    );
+                <div className="mt-3 grid gap-2 text-xs text-slate-500 sm:grid-cols-2 lg:grid-cols-4">
+                  {payment.reference && <span>المرجع: <b>{payment.reference}</b></span>}
+                  {payment.walletProvider && <span>المحفظة: <b>{payment.walletProvider}</b></span>}
+                  {payment.bankName && <span>البنك: <b>{payment.bankName}</b></span>}
+                  {payment.senderName && <span>المحوّل: <b>{payment.senderName}</b></span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-// =====================================================
-// Finance Row
-// =====================================================
+function PaymentForm({
+  invoice, amount, setAmount, method, setMethod, reference, setReference, file, setFile,
+  walletProvider, setWalletProvider, walletNumber, setWalletNumber, senderName, setSenderName,
+  bankName, setBankName, transferDate, setTransferDate, notes, setNotes, maxAmount, onSubmit,
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-function FinanceRow({ icon: Icon, label, value, to }) {
-    return (
-        <Link
-            to={to}
-            className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition hover:bg-slate-50"
-        >
-            <div className={TOKENS.iconBoxSm}>
-                <Icon size={17} />
-            </div>
+  const submit = async () => {
+    setError("");
+    if (!amount || Number(amount) <= 0) { setError("أدخل مبلغ دفع صحيح."); return; }
+    if (maxAmount > 0 && Number(amount) > maxAmount) { setError(`المبلغ لا يمكن أن يتجاوز المتبقي: ${maxAmount.toLocaleString()}.`); return; }
+    if (!file) { setError("أرفق إثبات الدفع قبل الإرسال."); return; }
+    if (method === "محفظة إلكترونية" && !walletProvider.trim()) { setError("اختر أو أدخل اسم المحفظة الإلكترونية."); return; }
+    if (method === "تحويل بنكي" && !bankName.trim()) { setError("أدخل اسم البنك."); return; }
+    setBusy(true);
+    try { await onSubmit(); } finally { setBusy(false); }
+  };
 
-            <span className="flex-1 text-xs font-bold text-slate-600">{label}</span>
-            <span className="text-xs font-black text-slate-900">{value}</span>
-            <ChevronLeft size={15} className="text-slate-300" />
-        </Link>
-    );
+  return (
+    <div className="payment-panel">
+      <div className="flex items-start gap-4">
+        <div className="icon-box"><Receipt size={20} /></div>
+        <div><h3 className="text-xl font-black">إرسال دفعة وإثبات الدفع</h3><p className="mt-1 text-sm leading-6 text-slate-500">أدخل بيانات العملية بدقة، ثم أرفق الإيصال ليصل إلى إدارة SABARAT للمراجعة.</p></div>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <label className="label">الفاتورة<select value={invoice?.id || ""} onChange={() => {}} className="field"><option value={invoice?.id || ""}>{invoice?.number || "الفاتورة الحالية"}</option></select></label>
+        <label className="label">المبلغ<input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="0.01" step="0.01" className="field" placeholder="0.00" /></label>
+        <label className="label">طريقة الدفع<select value={method} onChange={(e) => setMethod(e.target.value)} className="field"><option>تحويل بنكي</option><option>محفظة إلكترونية</option><option>نقدي</option><option>بطاقة</option><option>أخرى</option></select></label>
+        <label className="label">رقم العملية / المرجع<input value={reference} onChange={(e) => setReference(e.target.value)} className="field" placeholder="رقم الحوالة أو العملية" /></label>
+      </div>
+
+      {method === "محفظة إلكترونية" && (
+        <div className="mt-4 grid gap-4 rounded-2xl border border-sky-100 bg-white/70 p-4 md:grid-cols-2">
+          <label className="label">اسم المحفظة<input value={walletProvider} onChange={(e) => setWalletProvider(e.target.value)} className="field" placeholder="مثال: جوالي / كاش / محفظة أخرى" /></label>
+          <label className="label">رقم المحفظة<input value={walletNumber} onChange={(e) => setWalletNumber(e.target.value)} className="field" placeholder="رقم المحفظة أو الحساب" /></label>
+          <label className="label md:col-span-2">اسم صاحب المحفظة / المحوّل<input value={senderName} onChange={(e) => setSenderName(e.target.value)} className="field" placeholder="الاسم كما يظهر في العملية" /></label>
+        </div>
+      )}
+
+      {method === "تحويل بنكي" && (
+        <div className="mt-4 grid gap-4 rounded-2xl border border-sky-100 bg-white/70 p-4 md:grid-cols-2">
+          <label className="label">اسم البنك<input value={bankName} onChange={(e) => setBankName(e.target.value)} className="field" placeholder="اسم البنك" /></label>
+          <label className="label">تاريخ التحويل<input value={transferDate} onChange={(e) => setTransferDate(e.target.value)} type="date" className="field" /></label>
+          <label className="label md:col-span-2">اسم المحوّل<input value={senderName} onChange={(e) => setSenderName(e.target.value)} className="field" placeholder="اسم صاحب الحساب المحوّل" /></label>
+        </div>
+      )}
+
+      <label className="upload-zone mt-4">
+        <UploadCloud size={26} className="text-sky-600" />
+        <span className="font-black">{file ? file.name : "ارفع إيصال الدفع"}</span>
+        <small className="text-slate-500">PDF, JPG, PNG — الحد الموصى به 10MB</small>
+        <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        {file && <button type="button" onClick={(e) => { e.preventDefault(); setFile(null); }} className="rounded-lg px-3 py-1.5 text-xs font-black text-red-500 hover:bg-red-50">إزالة الإيصال</button>}
+      </label>
+
+      <label className="label mt-4">ملاحظات العملية<textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="field resize-none" placeholder="أي ملاحظات إضافية حول الدفع..." /></label>
+
+      {error && <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+
+      <button onClick={submit} disabled={busy} className="primary-btn mt-5 w-full justify-center disabled:cursor-not-allowed disabled:opacity-50">
+        {busy ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+        {busy ? "جاري إرسال العملية..." : "إرسال إثبات الدفع للإدارة"}
+      </button>
+    </div>
+  );
 }
 
-// =====================================================
-// Performance Card
-// =====================================================
+function Requests({ requests, onCreate }) { const [title,setTitle]=useState("");const [description,setDescription]=useState("");const [priority,setPriority]=useState("عادي");const submit=()=>{if(!title.trim())return;onCreate({title,description,priority});setTitle("");setDescription("")};return <div className="space-y-6 animate-enter"><Title eyebrow="الطلبات الإضافية" title="طلب جديد" text="أي طلب خارج نطاق المشروع يرسل للإدارة لتحديد النطاق والتكلفة والموعد قبل اعتماده."/><div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="grid gap-4 md:grid-cols-2"><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="عنوان الطلب" className="field"/><select value={priority} onChange={e=>setPriority(e.target.value)} className="field"><option>عادي</option><option>مهم</option><option>عاجل</option></select></div><textarea value={description} onChange={e=>setDescription(e.target.value)} rows={4} placeholder="تفاصيل الطلب..." className="field mt-4"/><button onClick={submit} className="primary-btn mt-4"><Plus size={18}/> إرسال الطلب</button></div><div className="space-y-3">{requests.length?requests.map(r=><div key={r.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex justify-between gap-3"><div><b>{r.title}</b><p className="mt-2 text-sm text-slate-500">{r.description}</p><p className="mt-2 text-xs text-slate-400">الأولوية: {r.priority} • {r.createdAt}</p></div><Badge text={r.status}/></div></div>):<Empty title="لا توجد طلبات" text="يمكنك إنشاء طلب جديد من النموذج."/>}</div></div>; }
 
-function PerformanceCard({ icon: Icon, title, value, label }) {
-    return (
-        <section className={`${TOKENS.card} p-5`}>
-            <div className={TOKENS.iconBox}>
-                <Icon size={20} />
-            </div>
+function Support({ tickets, onCreate }) { const [subject,setSubject]=useState("");const [description,setDescription]=useState("");const [priority,setPriority]=useState("عادي");const submit=()=>{if(!subject.trim())return;onCreate({subject,description,priority});setSubject("");setDescription("")};return <div className="space-y-6 animate-enter"><Title eyebrow="الدعم" title="مركز الدعم الفني" text="افتح تذكرة لأي استفسار أو مشكلة، وتابع حالتها من نفس الصفحة."/><div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="grid gap-4 md:grid-cols-2"><input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="موضوع التذكرة" className="field"/><select value={priority} onChange={e=>setPriority(e.target.value)} className="field"><option>عادي</option><option>مهم</option><option>عاجل</option></select></div><textarea value={description} onChange={e=>setDescription(e.target.value)} rows={4} placeholder="وصف المشكلة..." className="field mt-4"/><button onClick={submit} className="primary-btn mt-4"><Headphones size={18}/> فتح تذكرة</button></div><div className="space-y-3">{tickets.length?tickets.map(t=><div key={t.id} className="flex justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div><b>{t.subject}</b><p className="mt-1 text-sm text-slate-500">{t.description}</p><p className="mt-2 text-xs text-slate-400">الأولوية: {t.priority} • {t.createdAt}</p></div><Badge text={t.status}/></div>):<Empty title="لا توجد تذاكر" text="جميع الأمور مستقرة حاليًا."/>}</div></div>; }
 
-            <p className="mt-5 text-xs font-black text-slate-400">{title}</p>
-            <p className="mt-1 text-2xl font-black text-slate-950">{value}</p>
-            <p className="mt-1 text-[10px] font-bold text-slate-400">{label}</p>
-        </section>
-    );
-}
+function Company({ discovery }) { const card=(title,items)=><div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h3 className="font-black">{title}</h3><div className="mt-5 space-y-4">{items.map(([k,v])=><div key={k} className="border-b border-slate-100 pb-3 last:border-0"><p className="text-xs font-bold text-slate-400">{k}</p><p className="mt-1 text-sm font-bold leading-6 text-slate-700">{v||"غير متوفر"}</p></div>)}</div></div>; return <div className="space-y-6 animate-enter"><Title eyebrow="الحساب والشركة" title="بيانات الشركة" text="المعلومات المأخوذة من نموذج الاحتياج ويمكن لاحقًا ربطها بحساب العميل في Laravel."/><div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{card("بيانات العميل",[["الشركة",discovery.companyName],["مسؤول التواصل",discovery.contactName],["المسمى",discovery.jobTitle],["الجوال",discovery.phone],["البريد",discovery.email],["المدينة",discovery.city]])}{card("النشاط",[["المجال",discovery.businessField],["سنوات العمل",discovery.yearsInBusiness],["المنتجات والخدمات",discovery.productsServices],["الميزة التنافسية",discovery.competitiveAdvantage]])}{card("الأهداف والتحديات",[["الأهداف",(discovery.marketingGoals||[]).join("، ")],["التحديات",(discovery.challenges||[]).join("، ")],["حالة العلامة",(discovery.brandStatus||[]).join("، ")]])}{card("الجمهور",[["العمر",discovery.audience.age],["الجنس",discovery.audience.gender],["الموقع",discovery.audience.location],["اللغة",discovery.audience.language],["الاهتمامات",discovery.audience.interests]])}{card("الخدمات والقنوات",[["الخدمات",(discovery.services||[]).join("، ")],["القنوات",discovery.additional?.preferredChannels?.join("، ")],["وسيلة التواصل",discovery.additional?.preferredContact]])}{card("الميزانية والتوقعات",[["العملة",discovery.budget?.currency],["النطاق",`${discovery.budget?.from||"-"} - ${discovery.budget?.to||"-"}`],["التوقعات",discovery.expectations],["موعد البدء",discovery.additional?.startDate]])}</div></div>; }
 
-// =====================================================
-// Building Icon
-// =====================================================
+/* ============================================================================
+   Shared UI
+   ============================================================================ */
 
-function BuildingIcon({ size = 20 }) {
-    return (
-        <svg
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M9 21V9h6v12" />
-            <path d="M7 7h.01" />
-            <path d="M17 7h.01" />
-            <path d="M7 11h.01" />
-            <path d="M17 11h.01" />
-        </svg>
-    );
-}
+function Title({ eyebrow,title,text }) { return <div><p className="text-xs font-black tracking-[.18em] text-sky-600">{eyebrow}</p><h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{title}</h1>{text&&<p className="mt-3 max-w-3xl text-sm leading-7 text-slate-500">{text}</p>}</div>; }
+function Ring({ progress,status }) { const r=55,c=2*Math.PI*r,o=c-(Math.min(progress,100)/100)*c;return <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="relative mx-auto h-48 w-48"><svg className="-rotate-90" viewBox="0 0 140 140"><circle cx="70" cy="70" r={r} fill="none" stroke="#e0f2fe" strokeWidth="12"/><circle cx="70" cy="70" r={r} fill="none" stroke="#0284c7" strokeWidth="12" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={o} className="ring-animate"/></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><b className="text-4xl">{progress}%</b><span className="mt-1 text-xs text-slate-400">إنجاز</span></div></div><div className="text-center"><Badge text={status}/></div></div>; }
+function Stat({ icon:Icon,label,value }) { return <div className="stat-card"><div className="flex items-center justify-between"><span className="icon-box"><Icon size={19}/></span><b className="text-2xl">{value}</b></div><p className="mt-4 text-sm font-bold text-slate-500">{label}</p></div>; }
+function Metric({label,value}) { return <div className="rounded-2xl bg-slate-50 p-3"><p className="text-[11px] text-slate-400">{label}</p><b className="mt-1 block">{value}</b></div>; }
+function Money({label,value}) { return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><span className="icon-box"><WalletCards size={19}/></span><p className="mt-4 text-sm text-slate-500">{label}</p><b className="mt-1 block text-2xl">{value}</b></div>; }
+function Bar({value}) { return <div className="h-2.5 overflow-hidden rounded-full bg-sky-50"><div className="h-full rounded-full bg-sky-600 transition-all duration-700" style={{width:`${Math.max(0,Math.min(100,value))}%`}}/></div>; }
+function Badge({text}) { const good=["تمت الموافقة","تم الدفع","مكتمل","تم التسليم","تم الرفع","مرسل"].includes(text);const bad=["مرفوض","يحتاج تعديل"].includes(text);const warn=["بانتظار الموافقة","بانتظار الدفع","قيد التنفيذ","قيد المراجعة","مراجعة إثبات الدفع"].includes(text);return <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-black ${good?"bg-emerald-50 text-emerald-700":bad?"bg-red-50 text-red-700":warn?"bg-amber-50 text-amber-700":"bg-sky-50 text-sky-700"}`}>{text}</span>; }
+function Gate({title,text,tone,action}) { const bg=tone==="warning"?"border-amber-200 bg-amber-50":tone==="success"?"border-emerald-200 bg-emerald-50":"border-sky-200 bg-sky-50";return <div className={`flex flex-col gap-4 rounded-3xl border p-5 sm:flex-row sm:items-center sm:justify-between ${bg}`}><div className="flex gap-3"><div className="mt-0.5 text-sky-600">{tone==="warning"?<AlertCircle size={20}/>:tone==="success"?<CheckCircle2 size={20}/>:<Zap size={20}/>}</div><div><b>{title}</b><p className="mt-1 text-sm leading-6 text-slate-500">{text}</p></div></div>{action}</div>; }
+function Empty({title,text}) { return <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center"><FileText className="mx-auto text-sky-500"/><b className="mt-3 block">{title}</b><p className="mt-1 text-sm text-slate-500">{text}</p></div>; }
+function ServiceList({services}) { return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><b>تقدم كل خدمة</b><div className="mt-6 space-y-5">{services.map(s=><div key={s.id}><div className="flex justify-between"><div><b>{s.name}</b><p className="text-xs text-slate-500">{s.status}</p></div><b>{s.progress}%</b></div><div className="mt-2"><Bar value={s.progress}/></div></div>)}</div></div>; }
+function Stages({project,state}) { const a=[["الاعتماد",project.companyApproved],["الدفع",project.paymentCompleted],["التخطيط",project.projectCreated],["التنفيذ",state.progress>0],["الموافقة",project.approvals.some(x=>x.status==="تمت الموافقة")],["التسليم",[STATUS.delivered,STATUS.completed].includes(project.status)]];return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><b>مراحل المشروع</b><div className="mt-7 space-y-4">{a.map(([x,done],i)=><div key={x} className="flex items-center gap-3"><span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black ${done?"bg-emerald-500 text-white":"bg-slate-50 text-slate-500"}`}>{done?<Check size={15}/>:i+1}</span><span className="text-sm font-bold">{x}</span><div className={`h-2 flex-1 rounded-full ${done?"bg-emerald-500":"bg-slate-100"}`}/></div>)}</div></div>; }
+function ActivityFeed({activity=[]}) { return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><b>آخر النشاطات</b><Activity size={18} className="text-sky-600"/></div><div className="mt-5 space-y-4">{activity.slice(0,6).map(a=><div key={a.id} className="flex gap-3"><span className="mt-1 h-2.5 w-2.5 rounded-full bg-sky-500"/><div className="flex-1"><div className="flex justify-between gap-3"><b className="text-sm">{a.title}</b><span className="text-[11px] text-slate-400">{a.time}</span></div><p className="mt-1 text-xs leading-5 text-slate-500">{a.text}</p></div></div>)}{!activity.length&&<Empty title="لا يوجد نشاط" text="سيظهر سجل النشاط هنا."/>}</div></div>; }
+function Status({project,state}) { const steps=[["إرسال النموذج",true],["اعتماد الشركة",project.companyApproved],["الدفع",project.paymentCompleted],["التخطيط",project.projectCreated],["التنفيذ",state.progress>0],["موافقة العميل",project.approvals.some(a=>a.status==="تمت الموافقة")],["التسليم",[STATUS.delivered,STATUS.completed].includes(project.status)]];return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex justify-between gap-4"><div><p className="text-xs font-black text-sky-600">حالة المشروع</p><h2 className="mt-2 text-2xl font-black">{state.currentStage}</h2><p className="mt-1 text-sm text-slate-500">المرحلة القادمة: {state.nextStage}</p></div><Badge text={state.status}/></div><div className="mt-8 overflow-x-auto pb-2"><div className="flex min-w-[800px] items-start">{steps.map(([x,done],i)=><div key={x} className="flex flex-1 items-start"><div className="flex flex-col items-center"><span className={`flex h-9 w-9 items-center justify-center rounded-full ${done?"bg-emerald-500 text-white":"border border-slate-200 text-slate-500"}`}>{done?<Check size={15}/>:i+1}</span><span className="mt-2 max-w-[90px] text-center text-[11px] font-bold text-slate-500">{x}</span></div>{i<steps.length-1&&<div className={`mt-4 h-0.5 flex-1 ${steps[i+1][1]?"bg-emerald-500":"bg-slate-200"}`}/>}</div>)}</div></div></div>; }
+function Toast({type="success",text,onClose}) { return <div className={`toast ${type}`}><CheckCircle2 size={18}/><span>{text}</span><button onClick={onClose}><X size={16}/></button></div>; }
+function formatBytes(bytes) { if(!bytes)return "0 B"; const units=["B","KB","MB","GB"];const i=Math.floor(Math.log(bytes)/Math.log(1024));return `${(bytes/Math.pow(1024,i)).toFixed(i?1:0)} ${units[i]}`; }
 
-export default ClientDashboardPage;
+const DASHBOARD_STYLES = `
+@keyframes enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ring{from{stroke-dashoffset:345}to{stroke-dashoffset:var(--dash)}}
+.animate-enter{animation:enter .45s ease both}.ring-animate{animation:ring 1s ease-out both}
+.brand-mark{display:flex;height:44px;width:44px;align-items:center;justify-content:center;border-radius:15px;background:linear-gradient(135deg,#0284c7,#38bdf8);font-weight:900;color:#fff;box-shadow:0 12px 28px rgba(2,132,199,.2)}
+.avatar{display:flex;height:42px;width:42px;align-items:center;justify-content:center;border-radius:999px;background:#e0f2fe;color:#0284c7}.notification-dot{position:absolute;right:-4px;top:-4px;min-width:19px;border-radius:999px;background:#ef4444;padding:2px 5px;text-align:center;font-size:9px;font-weight:900;color:#fff}
+.hero-card{position:relative;overflow:hidden;border:1px solid #bae6fd;border-radius:30px;background:linear-gradient(135deg,#f0f9ff,#fff 60%,#f0fdf4);padding:28px;box-shadow:0 18px 50px rgba(15,23,42,.06)}.hero-orb{position:absolute;left:6%;top:20%;display:flex;height:120px;width:120px;align-items:center;justify-content:center;border-radius:999px;background:rgba(56,189,248,.13);color:#0284c7;box-shadow:0 0 80px rgba(56,189,248,.18)}.glass-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.8);border-radius:999px;background:rgba(255,255,255,.75);padding:8px 12px;font-size:12px;font-weight:800;color:#475569;box-shadow:0 8px 20px rgba(15,23,42,.04)}
+.primary-btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:12px;background:#0284c7;padding:11px 17px;font-size:13px;font-weight:900;color:#fff;box-shadow:0 8px 20px rgba(2,132,199,.18);transition:.2s}.primary-btn:hover{transform:translateY(-1px);background:#0369a1}.secondary-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid #cbd5e1;border-radius:12px;background:#fff;padding:11px 17px;font-size:13px;font-weight:900;color:#334155}.success-btn{display:inline-flex;align-items:center;gap:8px;border-radius:12px;background:#16a34a;padding:11px 17px;font-size:13px;font-weight:900;color:#fff}.warning-btn{display:inline-flex;align-items:center;gap:8px;border-radius:12px;background:#f59e0b;padding:11px 17px;font-size:13px;font-weight:900;color:#fff}.quick-btn{display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0;border-radius:16px;padding:15px;font-weight:900;transition:.2s}.quick-btn:hover{border-color:#7dd3fc;background:#f0f9ff;transform:translateY(-2px)}
+.stat-card,.service-card{border:1px solid #e2e8f0;border-radius:24px;background:#fff;padding:20px;box-shadow:0 8px 30px rgba(15,23,42,.04);transition:.2s}.stat-card:hover,.service-card:hover{transform:translateY(-2px);box-shadow:0 14px 38px rgba(15,23,42,.07)}.icon-box{display:flex;height:44px;width:44px;align-items:center;justify-content:center;border-radius:15px;background:#e0f2fe;color:#0284c7}
+.field{width:100%;border:1px solid #e2e8f0;border-radius:13px;background:#f8fafc;padding:12px 14px;outline:0;font-size:13px}.field:focus{border-color:#38bdf8;box-shadow:0 0 0 3px rgba(56,189,248,.12)}.label{display:block;font-size:12px;font-weight:900;color:#475569}.label .field{margin-top:8px;font-weight:600}.payment-panel{border:1px solid #bae6fd;border-radius:30px;background:linear-gradient(135deg,#f0f9ff,#fff);padding:24px;box-shadow:0 12px 40px rgba(2,132,199,.07)}.upload-zone{display:flex;min-height:125px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:7px;border:2px dashed #bae6fd;border-radius:20px;background:#f8fdff;padding:20px;text-align:center;transition:.2s}.upload-zone:hover{border-color:#38bdf8;background:#f0f9ff}.toast{position:fixed;bottom:24px;left:24px;z-index:100;display:flex;max-width:420px;align-items:center;gap:10px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;padding:14px 16px;box-shadow:0 18px 45px rgba(15,23,42,.15);font-size:13px;font-weight:800;animation:enter .3s ease}.toast.success{color:#15803d}.toast.warning{color:#b45309}.toast.error{color:#dc2626}.toast button{margin-right:auto;color:#94a3b8}
+`;
