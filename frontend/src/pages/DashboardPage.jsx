@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 
 // =====================================================
-// 01. COLORS (من طلبك)
+// 01. COLORS
 // =====================================================
 
 const COLORS = {
@@ -79,7 +79,7 @@ const COLORS = {
 // 02. STORAGE & SEED DATA
 // =====================================================
 
-const KEY = "sabarat_admin_dashboard_v3";
+const KEY = "sabarat_admin_dashboard_v4";
 
 const seed = {
   settings: {
@@ -112,6 +112,7 @@ const seed = {
     role: "admin",
     permissions: ["*"],
     avatar: "👨‍💼",
+    createdAt: "2026-01-01",
   },
 
   clients: [
@@ -124,8 +125,9 @@ const seed = {
       status: "active",
       industry: "تقنية",
       createdAt: "2026-08-21",
-      projects: 3,
-      revenue: 4500,
+      projects: [],
+      revenue: 0,
+      totalPaid: 0,
     },
     {
       id: 1002,
@@ -136,8 +138,9 @@ const seed = {
       status: "active",
       industry: "مطاعم",
       createdAt: "2026-08-21",
-      projects: 1,
-      revenue: 1200,
+      projects: [],
+      revenue: 0,
+      totalPaid: 0,
     },
     {
       id: 1003,
@@ -148,8 +151,9 @@ const seed = {
       status: "pending",
       industry: "تجارة إلكترونية",
       createdAt: "2026-08-22",
-      projects: 0,
+      projects: [],
       revenue: 0,
+      totalPaid: 0,
     },
   ],
 
@@ -165,10 +169,11 @@ const seed = {
       progress: 68,
       deadline: "2026-09-10",
       budget: 1800,
-      spent: 1224,
+      spent: 0,
       assignedTo: [2, 3],
       createdAt: "2026-08-21",
-      tasks: { total: 24, completed: 16, pending: 8 },
+      tasks: [],
+      invoices: [],
     },
     {
       id: 2002,
@@ -181,10 +186,11 @@ const seed = {
       progress: 85,
       deadline: "2026-08-30",
       budget: 1200,
-      spent: 1020,
+      spent: 0,
       assignedTo: [3],
       createdAt: "2026-08-22",
-      tasks: { total: 12, completed: 10, pending: 2 },
+      tasks: [],
+      invoices: [],
     },
   ],
 
@@ -224,7 +230,8 @@ const seed = {
       projectId: 2001,
       status: "pending",
       version: 2,
-      uploadedBy: "أحمد",
+      uploadedBy: 2,
+      uploadedByName: "أحمد محمد",
       createdAt: "2026-08-21",
       size: "2.4 MB",
       category: "تصميم",
@@ -237,7 +244,8 @@ const seed = {
       projectId: 2001,
       status: "approved",
       version: 1,
-      uploadedBy: "سارة",
+      uploadedBy: 3,
+      uploadedByName: "سارة علي",
       createdAt: "2026-08-20",
       size: "1.1 MB",
       category: "عقود",
@@ -251,10 +259,11 @@ const seed = {
       clientId: 1001,
       projectId: 2001,
       amount: 1800,
-      paid: 1250,
-      status: "partially_paid",
+      paid: 0,
+      status: "pending",
       dueDate: "2026-09-10",
       createdAt: "2026-08-21",
+      payments: [],
     },
     {
       id: 4002,
@@ -262,10 +271,11 @@ const seed = {
       clientId: 1002,
       projectId: 2002,
       amount: 1200,
-      paid: 1200,
-      status: "paid",
+      paid: 0,
+      status: "pending",
       dueDate: "2026-08-30",
       createdAt: "2026-08-22",
+      payments: [],
     },
   ],
 
@@ -282,6 +292,8 @@ const seed = {
       status: "pending",
       createdAt: "2026-08-21",
       note: "دفعة المشروع الأولى",
+      verifiedBy: null,
+      verifiedAt: null,
     },
     {
       id: 5002,
@@ -295,6 +307,8 @@ const seed = {
       status: "verified",
       createdAt: "2026-08-20",
       note: "دفعة المشروع الثانية",
+      verifiedBy: 1,
+      verifiedAt: "2026-08-20",
     },
   ],
 
@@ -309,6 +323,7 @@ const seed = {
       status: "active",
       permissions: ["*"],
       avatar: "👨‍💼",
+      createdAt: "2026-01-01",
     },
     {
       id: 2,
@@ -323,6 +338,7 @@ const seed = {
         "requests.view", "requests.review", "files.view", "files.approve", "reports.view",
       ],
       avatar: "🧑‍💻",
+      createdAt: "2026-02-01",
     },
     {
       id: 3,
@@ -334,6 +350,7 @@ const seed = {
       status: "active",
       permissions: ["clients.view", "projects.view", "files.view", "files.upload"],
       avatar: "👩‍🎨",
+      createdAt: "2026-03-01",
     },
   ],
 
@@ -666,10 +683,6 @@ function Empty({ text = "لا توجد بيانات." }) {
   );
 }
 
-// =====================================================
-// 07. PROGRESS BAR COMPONENT
-// =====================================================
-
 function ProgressBar({ value, label, color = COLORS.primaryDark }) {
   const percentage = Math.max(0, Math.min(100, value));
   return (
@@ -691,7 +704,7 @@ function ProgressBar({ value, label, color = COLORS.primaryDark }) {
 }
 
 // =====================================================
-// 08. MAIN DASHBOARD COMPONENT
+// 07. MAIN DASHBOARD COMPONENT
 // =====================================================
 
 export default function DashboardPage() {
@@ -704,12 +717,16 @@ export default function DashboardPage() {
   const [notice, setNotice] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // =====================================================
+  // FUNCTIONS TO UPDATE RELATED DATA
+  // =====================================================
+
   const save = (next) => {
     setData(next);
     localStorage.setItem(KEY, JSON.stringify(next));
   };
 
-  const notify = (message, type = "success") => {
+  const notify = (message) => {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 2800);
   };
@@ -719,9 +736,120 @@ export default function DashboardPage() {
     data.user.permissions?.includes("*") ||
     data.user.permissions?.includes(permission);
 
-  const clientName = (id) => data.clients.find((x) => x.id === id)?.name || "—";
-  const projectName = (id) => data.projects.find((x) => x.id === id)?.name || "—";
-  const employeeName = (id) => data.employees.find((x) => x.id === id)?.name || "—";
+  // =====================================================
+  // HELPER FUNCTIONS
+  // =====================================================
+
+  const getClient = (id) => data.clients.find((x) => x.id === id);
+  const getProject = (id) => data.projects.find((x) => x.id === id);
+  const getEmployee = (id) => data.employees.find((x) => x.id === id);
+  const getInvoice = (id) => data.invoices.find((x) => x.id === id);
+
+  const clientName = (id) => getClient(id)?.name || "—";
+  const projectName = (id) => getProject(id)?.name || "—";
+  const employeeName = (id) => getEmployee(id)?.name || "—";
+
+  // =====================================================
+  // RECALCULATE RELATED DATA
+  // =====================================================
+
+  const recalculateClientStats = (d) => {
+    d.clients = d.clients.map((client) => {
+      const clientProjects = d.projects.filter((p) => p.clientId === client.id);
+      const clientInvoices = d.invoices.filter((inv) => inv.clientId === client.id);
+      const clientPayments = d.payments.filter((pay) => pay.clientId === client.id && pay.status === "verified");
+
+      const totalPaid = clientPayments.reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+      const totalInvoiced = clientInvoices.reduce((sum, inv) => sum + Number(inv.amount || 0), 0);
+
+      return {
+        ...client,
+        projects: clientProjects.map((p) => p.id),
+        revenue: totalInvoiced,
+        totalPaid: totalPaid,
+      };
+    });
+    return d;
+  };
+
+  const recalculateProjectStats = (d) => {
+    d.projects = d.projects.map((project) => {
+      const projectInvoices = d.invoices.filter((inv) => inv.projectId === project.id);
+      const projectPayments = d.payments.filter((pay) => {
+        const inv = d.invoices.find((i) => i.id === pay.invoiceId);
+        return inv?.projectId === project.id && pay.status === "verified";
+      });
+      const projectFiles = d.files.filter((file) => file.projectId === project.id);
+
+      const totalPaid = projectPayments.reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+      const totalInvoiced = projectInvoices.reduce((sum, inv) => sum + Number(inv.amount || 0), 0);
+
+      const progress = projectInvoices.length > 0 && totalInvoiced > 0
+        ? Math.round((totalPaid / totalInvoiced) * 100)
+        : project.progress || 0;
+
+      return {
+        ...project,
+        invoices: projectInvoices.map((inv) => inv.id),
+        spent: totalPaid,
+        progress: Math.min(100, progress),
+      };
+    });
+    return d;
+  };
+
+  const recalculateInvoiceStats = (d) => {
+    d.invoices = d.invoices.map((invoice) => {
+      const invoicePayments = d.payments.filter((pay) => pay.invoiceId === invoice.id && pay.status === "verified");
+      const totalPaid = invoicePayments.reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+
+      const status = totalPaid >= invoice.amount ? "paid" : totalPaid > 0 ? "partially_paid" : "pending";
+
+      return {
+        ...invoice,
+        paid: totalPaid,
+        status: status,
+        payments: invoicePayments.map((p) => p.id),
+      };
+    });
+    return d;
+  };
+
+  const recalculateAll = (d) => {
+    d = recalculateInvoiceStats(d);
+    d = recalculateProjectStats(d);
+    d = recalculateClientStats(d);
+    return d;
+  };
+
+  // =====================================================
+  // SYNC USER WITH EMPLOYEE (المدير)
+  // =====================================================
+
+  const syncUserWithEmployee = (d) => {
+    // البحث عن الموظف رقم 1 (المدير)
+    const adminEmployee = d.employees.find((emp) => emp.id === 1 && emp.role === "admin");
+    
+    if (adminEmployee) {
+      // تحديث بيانات المستخدم من بيانات الموظف المدير
+      d.user = {
+        ...d.user,
+        id: adminEmployee.id,
+        name: adminEmployee.name,
+        email: adminEmployee.email,
+        role: adminEmployee.role,
+        permissions: adminEmployee.permissions,
+        avatar: adminEmployee.avatar,
+        createdAt: adminEmployee.createdAt || d.user.createdAt,
+      };
+    }
+    
+    return d;
+  };
+
+  // =====================================================
+  // ACTIVITY & NOTIFICATION
+  // =====================================================
 
   const addActivity = (d, text, type = "system") => {
     const id = nextId(d, "activity");
@@ -756,16 +884,27 @@ export default function DashboardPage() {
     setTimeout(() => setIsLoading(false), 300);
   };
 
+  // =====================================================
+  // STATS
+  // =====================================================
+
   const stats = useMemo(() => {
-    const outstanding = data.invoices.reduce((sum, x) => sum + Math.max(0, Number(x.amount) - Number(x.paid)), 0);
-    const revenue = data.payments
-      .filter((x) => x.status === "verified")
-      .reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const totalClients = data.clients.length;
+    const activeClients = data.clients.filter((x) => x.status === "active").length;
     const totalProjects = data.projects.length;
     const completedProjects = data.projects.filter((x) => x.status === "completed").length;
     const inProgressProjects = data.projects.filter((x) => ["in_progress", "review"].includes(x.status)).length;
-    const totalClients = data.clients.length;
-    const activeClients = data.clients.filter((x) => x.status === "active").length;
+
+    const pendingRequests = data.requests.filter((x) => x.status === "pending").length;
+    const pendingFiles = data.files.filter((x) => x.status === "pending").length;
+
+    const pendingPayments = data.payments.filter((x) => x.status === "pending").length;
+    const verifiedPayments = data.payments.filter((x) => x.status === "verified");
+
+    const totalRevenue = verifiedPayments.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const totalInvoiced = data.invoices.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+    const totalPaid = data.invoices.reduce((sum, x) => sum + Number(x.paid || 0), 0);
+    const outstanding = totalInvoiced - totalPaid;
 
     return {
       clients: totalClients,
@@ -773,22 +912,24 @@ export default function DashboardPage() {
       totalProjects,
       completedProjects,
       inProgressProjects,
-      pendingRequests: data.requests.filter((x) => x.status === "pending").length,
-      pendingFiles: data.files.filter((x) => x.status === "pending").length,
-      pendingPayments: data.payments.filter((x) => x.status === "pending").length,
+      pendingRequests,
+      pendingFiles,
+      pendingPayments,
+      totalRevenue,
+      totalInvoiced,
+      totalPaid,
       outstanding,
-      revenue,
       notifications: data.notifications.filter((x) => !x.read).length,
       projectCompletionRate: totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0,
     };
   }, [data]);
 
   // =====================================================
-  // 09. BUSINESS LOGIC FUNCTIONS
+  // BUSINESS LOGIC FUNCTIONS
   // =====================================================
 
   const approveRequest = (id, status) => {
-    if (!can("requests.review")) return notify("لا تملك صلاحية مراجعة الطلبات.", "error");
+    if (!can("requests.review")) return notify("لا تملك صلاحية مراجعة الطلبات.");
 
     const d = clone(data);
     const item = d.requests.find((x) => x.id === id);
@@ -814,20 +955,24 @@ export default function DashboardPage() {
         spent: 0,
         assignedTo: [],
         createdAt: today(),
-        tasks: { total: 0, completed: 0, pending: 0 },
+        tasks: [],
+        invoices: [],
       });
       addActivity(d, `تم اعتماد ${item.code} وإنشاء المشروع PRJ-${projectId}`, "request");
     } else {
       addActivity(d, `تم تحديث ${item.code} إلى ${status}`, "request");
     }
 
-    addNotification(d, "تحديث طلب", `تم اتخاذ قرار على الطلب ${item.code}.`, "client");
-    save(d);
+    // إعادة حساب جميع البيانات المرتبطة ومزامنة المدير
+    let updatedData = recalculateAll(d);
+    updatedData = syncUserWithEmployee(updatedData);
+    addNotification(updatedData, "تحديث طلب", `تم اتخاذ قرار على الطلب ${item.code}.`, "client");
+    save(updatedData);
     notify("تم تحديث الطلب بنجاح.");
   };
 
   const approveFile = (id, status) => {
-    if (!can("files.approve")) return notify("لا تملك صلاحية اعتماد الملفات.", "error");
+    if (!can("files.approve")) return notify("لا تملك صلاحية اعتماد الملفات.");
 
     const d = clone(data);
     const item = d.files.find((x) => x.id === id);
@@ -839,38 +984,41 @@ export default function DashboardPage() {
 
     addActivity(d, `تم ${status === "approved" ? "اعتماد" : "رفض"} الملف ${item.code}`, "file");
     addNotification(d, "مراجعة ملف", `تم تحديث حالة ${item.code}.`, "client");
-    save(d);
+    
+    // مزامنة المدير
+    let updatedData = syncUserWithEmployee(d);
+    save(updatedData);
     notify("تم تحديث الملف.");
   };
 
   const verifyPayment = (id, status) => {
-    if (!can("payments.verify")) return notify("لا تملك صلاحية التحقق من المدفوعات.", "error");
+    if (!can("payments.verify")) return notify("لا تملك صلاحية التحقق من المدفوعات.");
 
     const d = clone(data);
     const payment = d.payments.find((x) => x.id === id);
     if (!payment) return;
 
     if (payment.status === "verified" && status === "verified") return;
+
     payment.status = status;
     payment.reviewedAt = timeNow();
-    payment.reviewedBy = d.user.name;
+    payment.reviewedBy = d.user.id;
+    payment.verifiedBy = d.user.id;
+    payment.verifiedAt = timeNow();
 
-    const invoice = d.invoices.find((x) => x.id === payment.invoiceId);
+    // إعادة حساب جميع البيانات المرتبطة
+    let updatedData = recalculateAll(d);
+    updatedData = syncUserWithEmployee(updatedData);
 
-    if (status === "verified" && invoice) {
-      invoice.paid = Math.min(Number(invoice.amount), Number(invoice.paid) + Number(payment.amount));
-      invoice.status = invoice.paid >= invoice.amount ? "paid" : "partially_paid";
-    }
+    addActivity(updatedData, `تم ${status === "verified" ? "اعتماد" : "رفض"} الدفعة ${payment.code}`, "payment");
+    addNotification(updatedData, "تحديث دفعة", `تم تحديث الدفعة ${payment.code}.`, "client");
 
-    addActivity(d, `تم ${status === "verified" ? "اعتماد" : "رفض"} الدفعة ${payment.code}`, "payment");
-    addNotification(d, "تحديث دفعة", `تم تحديث الدفعة ${payment.code}.`, "client");
-
-    save(d);
-    notify("تم تحديث الدفعة وربطها بالفاتورة.");
+    save(updatedData);
+    notify("تم تحديث الدفعة وربطها بالفاتورة والمشروع.");
   };
 
   const createClient = (form) => {
-    if (!can("clients.create")) return notify("لا تملك صلاحية إنشاء العملاء.", "error");
+    if (!can("clients.create")) return notify("لا تملك صلاحية إنشاء العملاء.");
 
     const d = clone(data);
     const id = nextId(d, "client");
@@ -884,18 +1032,21 @@ export default function DashboardPage() {
       status: "active",
       industry: form.industry || "",
       createdAt: today(),
-      projects: 0,
+      projects: [],
       revenue: 0,
+      totalPaid: 0,
     });
 
     addActivity(d, `تم إنشاء العميل CLI-${id} — ${form.name}`, "client");
-    save(d);
+    let updatedData = recalculateAll(d);
+    updatedData = syncUserWithEmployee(updatedData);
+    save(updatedData);
     setModal(null);
     notify(`تم إنشاء العميل CLI-${id}.`);
   };
 
   const updateClient = (id, form) => {
-    if (!can("clients.update")) return notify("لا تملك صلاحية تعديل العملاء.", "error");
+    if (!can("clients.update")) return notify("لا تملك صلاحية تعديل العملاء.");
 
     const d = clone(data);
     const item = d.clients.find((x) => x.id === id);
@@ -910,29 +1061,38 @@ export default function DashboardPage() {
     });
 
     addActivity(d, `تم تعديل العميل ${item.code}`, "client");
-    save(d);
+    let updatedData = recalculateAll(d);
+    updatedData = syncUserWithEmployee(updatedData);
+    save(updatedData);
     setModal(null);
     notify("تم حفظ بيانات العميل.");
   };
 
   const deleteClient = (id) => {
-    if (!can("clients.delete")) return notify("لا تملك صلاحية حذف العملاء.", "error");
+    if (!can("clients.delete")) return notify("لا تملك صلاحية حذف العملاء.");
+
     const item = data.clients.find((x) => x.id === id);
     if (!item) return;
 
     if (data.projects.some((x) => x.clientId === id) || data.invoices.some((x) => x.clientId === id)) {
-      return notify("لا يمكن حذف العميل لأنه مرتبط بمشاريع أو فواتير.", "error");
+      return notify("لا يمكن حذف العميل لأنه مرتبط بمشاريع أو فواتير.");
     }
 
     const d = clone(data);
     d.clients = d.clients.filter((x) => x.id !== id);
+
+    // حذف الطلبات المرتبطة
+    d.requests = d.requests.filter((x) => x.clientId !== id);
+
     addActivity(d, `تم حذف العميل ${item.code}`, "client");
-    save(d);
+    let updatedData = recalculateAll(d);
+    updatedData = syncUserWithEmployee(updatedData);
+    save(updatedData);
     notify("تم حذف العميل.");
   };
 
   const createProject = (form) => {
-    if (!can("projects.create")) return notify("لا تملك صلاحية إنشاء المشاريع.", "error");
+    if (!can("projects.create")) return notify("لا تملك صلاحية إنشاء المشاريع.");
 
     const d = clone(data);
     const id = nextId(d, "project");
@@ -951,17 +1111,20 @@ export default function DashboardPage() {
       spent: 0,
       assignedTo: [],
       createdAt: today(),
-      tasks: { total: 0, completed: 0, pending: 0 },
+      tasks: [],
+      invoices: [],
     });
 
     addActivity(d, `تم إنشاء المشروع PRJ-${id}`, "project");
-    save(d);
+    let updatedData = recalculateAll(d);
+    updatedData = syncUserWithEmployee(updatedData);
+    save(updatedData);
     setModal(null);
     notify(`تم إنشاء PRJ-${id}.`);
   };
 
   const updateProject = (id, form) => {
-    if (!can("projects.update")) return notify("لا تملك صلاحية تعديل المشاريع.", "error");
+    if (!can("projects.update")) return notify("لا تملك صلاحية تعديل المشاريع.");
 
     const d = clone(data);
     const item = d.projects.find((x) => x.id === id);
@@ -979,13 +1142,15 @@ export default function DashboardPage() {
     });
 
     addActivity(d, `تم تعديل المشروع ${item.code}`, "project");
-    save(d);
+    let updatedData = recalculateAll(d);
+    updatedData = syncUserWithEmployee(updatedData);
+    save(updatedData);
     setModal(null);
     notify("تم حفظ المشروع.");
   };
 
   const createInvoice = (form) => {
-    if (!can("invoices.create")) return notify("لا تملك صلاحية إنشاء الفواتير.", "error");
+    if (!can("invoices.create")) return notify("لا تملك صلاحية إنشاء الفواتير.");
 
     const d = clone(data);
     const id = nextId(d, "invoice");
@@ -1000,17 +1165,21 @@ export default function DashboardPage() {
       status: "pending",
       dueDate: form.dueDate,
       createdAt: today(),
+      payments: [],
     });
 
     addActivity(d, `تم إنشاء الفاتورة INV-${id}`, "invoice");
     addNotification(d, "فاتورة جديدة", `تم إنشاء الفاتورة INV-${id}.`, "client");
-    save(d);
+
+    let updatedData = recalculateAll(d);
+    updatedData = syncUserWithEmployee(updatedData);
+    save(updatedData);
     setModal(null);
     notify(`تم إنشاء INV-${id}.`);
   };
 
   const createReport = (form) => {
-    if (!can("reports.create")) return notify("لا تملك صلاحية إنشاء التقارير.", "error");
+    if (!can("reports.create")) return notify("لا تملك صلاحية إنشاء التقارير.");
 
     const d = clone(data);
     const id = nextId(d, "report");
@@ -1026,13 +1195,14 @@ export default function DashboardPage() {
     });
 
     addActivity(d, `تم إنشاء التقرير RPT-${id}`, "report");
-    save(d);
+    let updatedData = syncUserWithEmployee(d);
+    save(updatedData);
     setModal(null);
     notify(`تم إنشاء التقرير RPT-${id}.`);
   };
 
   const createEmployee = (form) => {
-    if (!can("employees.manage")) return notify("لا تملك صلاحية إدارة الموظفين.", "error");
+    if (!can("employees.manage")) return notify("لا تملك صلاحية إدارة الموظفين.");
 
     const d = clone(data);
     const id = nextId(d, "employee");
@@ -1047,26 +1217,76 @@ export default function DashboardPage() {
       status: "active",
       permissions: form.permissions,
       avatar: "👤",
+      createdAt: today(),
     });
 
     addActivity(d, `تم إنشاء الموظف EMP-${id}`, "employee");
-    save(d);
+    
+    // مزامنة المدير بعد إضافة موظف جديد
+    let updatedData = syncUserWithEmployee(d);
+    save(updatedData);
     setModal(null);
     notify(`تم إنشاء EMP-${id}.`);
   };
 
+  // =====================================================
+  // updateEmployee - مُعدلة لتحديث المدير تلقائياً
+  // =====================================================
+
   const updateEmployee = (id, form) => {
-    if (!can("employees.manage")) return notify("لا تملك صلاحية إدارة الموظفين.", "error");
+    if (!can("employees.manage")) return notify("لا تملك صلاحية إدارة الموظفين.");
 
     const d = clone(data);
     const item = d.employees.find((x) => x.id === id);
     if (!item) return;
 
+    // حفظ البيانات القديمة للمقارنة
+    const oldName = item.name;
+    const oldAvatar = item.avatar;
+    const oldRole = item.role;
+
+    // تحديث بيانات الموظف
     Object.assign(item, form);
+
     addActivity(d, `تم تعديل صلاحيات الموظف ${item.code}`, "employee");
-    save(d);
+
+    // =====================================================
+    // 🔥 IMPORTANT: تحديث المدير إذا كان هذا هو الموظف رقم 1
+    // =====================================================
+    if (id === 1 && item.role === "admin") {
+      // تحديث بيانات المستخدم (data.user) بنفس البيانات
+      d.user = {
+        ...d.user,
+        name: item.name,
+        email: item.email,
+        role: item.role,
+        permissions: item.permissions,
+        avatar: item.avatar,
+      };
+
+      // إضافة نشاط خاص بتغيير المدير
+      if (oldName !== item.name) {
+        addActivity(d, `تم تغيير اسم المدير من "${oldName}" إلى "${item.name}"`, "system");
+        addNotification(d, "تحديث المدير", `تم تغيير اسم المدير إلى "${item.name}".`, "admin");
+      }
+
+      if (oldAvatar !== item.avatar) {
+        addActivity(d, `تم تغيير صورة المدير`, "system");
+      }
+
+      if (oldRole !== item.role) {
+        addActivity(d, `تم تغيير دور المدير إلى ${roleLabels[item.role] || item.role}`, "system");
+      }
+
+      notify(`✅ تم تحديث بيانات المدير بنجاح. الاسم الجديد: ${item.name}`);
+    } else {
+      notify("تم حفظ الموظف والصلاحيات.");
+    }
+
+    // مزامنة البيانات في كل الأحوال
+    let updatedData = syncUserWithEmployee(d);
+    save(updatedData);
     setModal(null);
-    notify("تم حفظ الموظف والصلاحيات.");
   };
 
   const markNotificationRead = (id) => {
@@ -1246,6 +1466,7 @@ export default function DashboardPage() {
                   approveRequest={approveRequest}
                   verifyPayment={verifyPayment}
                   can={can}
+                  clientName={clientName}
                 />
               )}
 
@@ -1264,6 +1485,7 @@ export default function DashboardPage() {
                   setSelected={setSelected}
                   can={can}
                   deleteClient={deleteClient}
+                  clientName={clientName}
                 />
               )}
 
@@ -1303,6 +1525,7 @@ export default function DashboardPage() {
                   setFilter={setFilter}
                   clientName={clientName}
                   projectName={projectName}
+                  employeeName={employeeName}
                   act={approveFile}
                 />
               )}
@@ -1317,6 +1540,7 @@ export default function DashboardPage() {
                   clientName={clientName}
                   money={money}
                   act={verifyPayment}
+                  employeeName={employeeName}
                 />
               )}
 
@@ -1340,6 +1564,7 @@ export default function DashboardPage() {
                   setModal={setModal}
                   setSelected={setSelected}
                   can={can}
+                  updateEmployee={updateEmployee}
                 />
               )}
 
@@ -1356,6 +1581,7 @@ export default function DashboardPage() {
                   items={filtered(data.activity)}
                   search={search}
                   setSearch={setSearch}
+                  employeeName={employeeName}
                 />
               )}
 
@@ -1446,10 +1672,10 @@ export default function DashboardPage() {
 }
 
 // =====================================================
-// 10. OVERVIEW
+// 08. OVERVIEW
 // =====================================================
 
-function Overview({ data, stats, money, navigate, setModal, approveRequest, verifyPayment, can }) {
+function Overview({ data, stats, money, navigate, setModal, approveRequest, verifyPayment, can, clientName }) {
   return (
     <div className="space-y-7">
       <PageHeader
@@ -1494,10 +1720,10 @@ function Overview({ data, stats, money, navigate, setModal, approveRequest, veri
         />
         <StatCard
           title="الإيرادات المحققة"
-          value={money(stats.revenue)}
+          value={money(stats.totalRevenue)}
           icon={CircleDollarSign}
           trend="up"
-          trendValue="+12%"
+          trendValue={`+${stats.totalRevenue > 0 ? Math.round((stats.totalRevenue / (stats.totalRevenue - stats.outstanding || 1)) * 100) : 0}%`}
           onClick={() => navigate("payments")}
           color="#0F172A"
         />
@@ -1577,7 +1803,7 @@ function Overview({ data, stats, money, navigate, setModal, approveRequest, veri
                 <div className="flex justify-between gap-3">
                   <div>
                     <b className="text-sm">{x.title}</b>
-                    <p className="mt-1 text-xs text-[#64748B]">{x.code} • {data.clients.find((c) => c.id === x.clientId)?.name}</p>
+                    <p className="mt-1 text-xs text-[#64748B]">{x.code} • {clientName(x.clientId)}</p>
                   </div>
                   {labelStatus(x.status)}
                 </div>
@@ -1619,7 +1845,7 @@ function Overview({ data, stats, money, navigate, setModal, approveRequest, veri
                 <div className="flex justify-between gap-3">
                   <div>
                     <b className="text-sm">{x.code}</b>
-                    <p className="mt-1 text-xs text-[#64748B]">{data.clients.find((c) => c.id === x.clientId)?.name} • {x.method}</p>
+                    <p className="mt-1 text-xs text-[#64748B]">{clientName(x.clientId)} • {x.method}</p>
                   </div>
                   <b className="text-[#5EA8CC]">{money(x.amount)}</b>
                 </div>
@@ -1675,7 +1901,7 @@ function Overview({ data, stats, money, navigate, setModal, approveRequest, veri
 }
 
 // =====================================================
-// 11. ANALYTICS
+// 09. ANALYTICS
 // =====================================================
 
 function Analytics({ data, money }) {
@@ -1865,10 +2091,10 @@ function Analytics({ data, money }) {
 }
 
 // =====================================================
-// 12. CLIENTS
+// 10. CLIENTS
 // =====================================================
 
-function Clients({ items, search, setSearch, filter, setFilter, setModal, setSelected, can, deleteClient }) {
+function Clients({ items, search, setSearch, filter, setFilter, setModal, setSelected, can, deleteClient, clientName }) {
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]">
       <PageHeader
@@ -1891,45 +2117,50 @@ function Clients({ items, search, setSearch, filter, setFilter, setModal, setSel
                 <th className="p-4">التواصل</th>
                 <th className="p-4">النشاط</th>
                 <th className="p-4">المشاريع</th>
+                <th className="p-4">الإيرادات</th>
                 <th className="p-4">الحالة</th>
                 <th className="p-4">الإجراءات</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((x) => (
-                <tr key={x.id} className="border-t border-[#E2E8F0] transition hover:bg-[#F8FAFC]">
-                  <td className="p-4">
-                    <b className="text-[#0F172A]">{x.name}</b>
-                    <p className="mt-1 text-xs text-[#64748B]">{x.code}</p>
-                  </td>
-                  <td className="p-4 text-sm">
-                    {x.email}
-                    <br />
-                    {x.phone}
-                  </td>
-                  <td className="p-4 text-sm text-[#64748B]">{x.industry || "—"}</td>
-                  <td className="p-4 text-sm font-bold">{x.projects || 0}</td>
-                  <td className="p-4">{labelStatus(x.status)}</td>
-                  <td className="p-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setSelected(x);
-                          setModal("clientEdit");
-                        }}
-                      >
-                        <Eye size={15} /> عرض/تعديل
-                      </Button>
-                      {can("clients.delete") && (
-                        <Button variant="danger" onClick={() => deleteClient(x.id)}>
-                          <Trash2 size={15} /> حذف
+              {items.map((x) => {
+                const projectCount = Array.isArray(x.projects) ? x.projects.length : 0;
+                return (
+                  <tr key={x.id} className="border-t border-[#E2E8F0] transition hover:bg-[#F8FAFC]">
+                    <td className="p-4">
+                      <b className="text-[#0F172A]">{x.name}</b>
+                      <p className="mt-1 text-xs text-[#64748B]">{x.code}</p>
+                    </td>
+                    <td className="p-4 text-sm">
+                      {x.email}
+                      <br />
+                      {x.phone}
+                    </td>
+                    <td className="p-4 text-sm text-[#64748B]">{x.industry || "—"}</td>
+                    <td className="p-4 text-sm font-bold">{projectCount}</td>
+                    <td className="p-4 text-sm font-bold text-[#5EA8CC]">{x.revenue || 0}</td>
+                    <td className="p-4">{labelStatus(x.status)}</td>
+                    <td className="p-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setSelected(x);
+                            setModal("clientEdit");
+                          }}
+                        >
+                          <Eye size={15} /> عرض/تعديل
                         </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {can("clients.delete") && (
+                          <Button variant="danger" onClick={() => deleteClient(x.id)}>
+                            <Trash2 size={15} /> حذف
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1940,7 +2171,7 @@ function Clients({ items, search, setSearch, filter, setFilter, setModal, setSel
 }
 
 // =====================================================
-// 13. PROJECTS
+// 11. PROJECTS
 // =====================================================
 
 function Projects({ items, search, setSearch, filter, setFilter, setModal, setSelected, clientName, employeeName, can }) {
@@ -1958,59 +2189,70 @@ function Projects({ items, search, setSearch, filter, setFilter, setModal, setSe
       <SearchBar search={search} setSearch={setSearch} filter={filter} setFilter={setFilter} />
 
       <div className="grid gap-5 lg:grid-cols-2">
-        {items.map((x) => (
-          <Card key={x.id} className="p-6 transition-all duration-300 hover:shadow-xl">
-            <div className="flex justify-between gap-4">
-              <div>
-                <span className="text-xs font-black text-[#5EA8CC]">{x.code}</span>
-                <h2 className="mt-1 font-black text-lg text-[#0F172A]">{x.name}</h2>
-                <p className="mt-1 text-xs text-[#64748B]">{clientName(x.clientId)} • {x.service}</p>
+        {items.map((x) => {
+          const assignedNames = (x.assignedTo || []).map((id) => employeeName(id)).filter(Boolean).join("، ") || "غير محدد";
+          return (
+            <Card key={x.id} className="p-6 transition-all duration-300 hover:shadow-xl">
+              <div className="flex justify-between gap-4">
+                <div>
+                  <span className="text-xs font-black text-[#5EA8CC]">{x.code}</span>
+                  <h2 className="mt-1 font-black text-lg text-[#0F172A]">{x.name}</h2>
+                  <p className="mt-1 text-xs text-[#64748B]">{clientName(x.clientId)} • {x.service}</p>
+                </div>
+                {labelStatus(x.status)}
               </div>
-              {labelStatus(x.status)}
-            </div>
 
-            <ProgressBar value={x.progress} color={x.progress > 70 ? "#22C55E" : x.progress > 40 ? "#F59E0B" : "#5EA8CC"} />
+              <ProgressBar value={x.progress} color={x.progress > 70 ? "#22C55E" : x.progress > 40 ? "#F59E0B" : "#5EA8CC"} />
 
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              <div className="rounded-2xl bg-[#F8FAFC] p-3 transition hover:bg-[#EAF6FC]">
-                <small className="text-xs text-[#64748B]">الميزانية</small>
-                <b className="mt-1 block text-[#0F172A]">{x.budget}</b>
+              <div className="mt-5 grid grid-cols-4 gap-2">
+                <div className="rounded-2xl bg-[#F8FAFC] p-2 text-center transition hover:bg-[#EAF6FC]">
+                  <small className="text-[9px] text-[#64748B]">الميزانية</small>
+                  <b className="mt-0.5 block text-xs">{x.budget}</b>
+                </div>
+                <div className="rounded-2xl bg-[#F8FAFC] p-2 text-center transition hover:bg-[#EAF6FC]">
+                  <small className="text-[9px] text-[#64748B]">المصروف</small>
+                  <b className="mt-0.5 block text-xs">{x.spent || 0}</b>
+                </div>
+                <div className="rounded-2xl bg-[#F8FAFC] p-2 text-center transition hover:bg-[#EAF6FC]">
+                  <small className="text-[9px] text-[#64748B]">الأولوية</small>
+                  <b className="mt-0.5 block text-xs">
+                    {x.priority === "high" ? "🔴" : x.priority === "low" ? "🟢" : "🟡"}
+                  </b>
+                </div>
+                <div className="rounded-2xl bg-[#F8FAFC] p-2 text-center transition hover:bg-[#EAF6FC]">
+                  <small className="text-[9px] text-[#64748B]">الموعد</small>
+                  <b className="mt-0.5 block text-xs">{x.deadline || "—"}</b>
+                </div>
               </div>
-              <div className="rounded-2xl bg-[#F8FAFC] p-3 transition hover:bg-[#EAF6FC]">
-                <small className="text-xs text-[#64748B]">الأولوية</small>
-                <b className="mt-1 block text-[#0F172A]">
-                  {x.priority === "high" ? "🔴 عالية" : x.priority === "low" ? "🟢 منخفضة" : "🟡 متوسطة"}
-                </b>
-              </div>
-              <div className="rounded-2xl bg-[#F8FAFC] p-3 transition hover:bg-[#EAF6FC]">
-                <small className="text-xs text-[#64748B]">الموعد</small>
-                <b className="mt-1 block text-[#0F172A]">{x.deadline || "غير محدد"}</b>
-              </div>
-            </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {can("projects.update") && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelected(x);
-                    setModal("projectEdit");
-                  }}
-                >
-                  <Edit3 size={15} /> تعديل
+              <div className="mt-3 text-xs text-[#64748B]">
+                <span className="font-bold">الفريق:</span> {assignedNames}
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {can("projects.update") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelected(x);
+                      setModal("projectEdit");
+                    }}
+                  >
+                    <Edit3 size={15} /> تعديل
+                  </Button>
+                )}
+                {can("projects.team") && (
+                  <Button variant="primary">
+                    <Users size={15} /> الفريق
+                  </Button>
+                )}
+                <Button variant="outline">
+                  <Eye size={15} /> التفاصيل
                 </Button>
-              )}
-              {can("projects.team") && (
-                <Button variant="primary">
-                  <Users size={15} /> الفريق
-                </Button>
-              )}
-              <Button variant="outline">
-                <Eye size={15} /> التفاصيل
-              </Button>
-            </div>
-          </Card>
-        ))}
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {!items.length && <Empty text="لا توجد مشاريع مطابقة." />}
@@ -2019,7 +2261,7 @@ function Projects({ items, search, setSearch, filter, setFilter, setModal, setSe
 }
 
 // =====================================================
-// 14. REQUESTS
+// 12. REQUESTS
 // =====================================================
 
 function Requests({ items, search, setSearch, filter, setFilter, clientName, act }) {
@@ -2070,10 +2312,10 @@ function Requests({ items, search, setSearch, filter, setFilter, clientName, act
 }
 
 // =====================================================
-// 15. FILES
+// 13. FILES
 // =====================================================
 
-function Files({ items, search, setSearch, filter, setFilter, clientName, projectName, act }) {
+function Files({ items, search, setSearch, filter, setFilter, clientName, projectName, employeeName, act }) {
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]">
       <PageHeader
@@ -2098,7 +2340,7 @@ function Files({ items, search, setSearch, filter, setFilter, clientName, projec
             <div className="mt-4 grid grid-cols-2 gap-3">
               <Box label="العميل" value={clientName(x.clientId)} />
               <Box label="المشروع" value={projectName(x.projectId)} />
-              <Box label="رفع بواسطة" value={x.uploadedBy} />
+              <Box label="رفع بواسطة" value={employeeName(x.uploadedBy) || x.uploadedByName} />
               <Box label="الحجم" value={x.size} />
             </div>
 
@@ -2129,10 +2371,10 @@ function Files({ items, search, setSearch, filter, setFilter, clientName, projec
 }
 
 // =====================================================
-// 16. PAYMENTS
+// 14. PAYMENTS
 // =====================================================
 
-function Payments({ items, search, setSearch, filter, setFilter, clientName, money, act }) {
+function Payments({ items, search, setSearch, filter, setFilter, clientName, money, act, employeeName }) {
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]">
       <PageHeader
@@ -2152,6 +2394,7 @@ function Payments({ items, search, setSearch, filter, setFilter, clientName, mon
                 <th className="p-4">المبلغ</th>
                 <th className="p-4">الطريقة</th>
                 <th className="p-4">المرجع</th>
+                <th className="p-4">تم التحقق بواسطة</th>
                 <th className="p-4">الحالة</th>
                 <th className="p-4">القرار</th>
               </tr>
@@ -2167,6 +2410,7 @@ function Payments({ items, search, setSearch, filter, setFilter, clientName, mon
                     {x.wallet && <span className="block text-xs text-[#64748B]">{x.wallet}</span>}
                   </td>
                   <td className="p-4 text-xs text-[#64748B]">{x.reference || "—"}</td>
+                  <td className="p-4 text-xs text-[#64748B]">{x.verifiedBy ? employeeName(x.verifiedBy) : "—"}</td>
                   <td className="p-4">{labelStatus(x.status)}</td>
                   <td className="p-4">
                     {x.status === "pending" && (
@@ -2192,7 +2436,7 @@ function Payments({ items, search, setSearch, filter, setFilter, clientName, mon
 }
 
 // =====================================================
-// 17. INVOICES
+// 15. INVOICES
 // =====================================================
 
 function Invoices({ data, search, setSearch, clientName, projectName, money, setModal, setSelected, can }) {
@@ -2218,6 +2462,7 @@ function Invoices({ data, search, setSearch, clientName, projectName, money, set
         {items.map((x) => {
           const remaining = Math.max(0, Number(x.amount) - Number(x.paid));
           const isOverdue = new Date(x.dueDate) < new Date() && remaining > 0;
+          const paymentCount = Array.isArray(x.payments) ? x.payments.length : 0;
 
           return (
             <Card key={x.id} className="p-6 transition-all duration-300 hover:shadow-lg">
@@ -2237,6 +2482,10 @@ function Invoices({ data, search, setSearch, clientName, projectName, money, set
                 <Box label="الإجمالي" value={money(x.amount)} />
                 <Box label="المدفوع" value={money(x.paid)} />
                 <Box label="المتبقي" value={money(remaining)} tone={remaining > 0 ? "warning" : "success"} />
+              </div>
+
+              <div className="mt-2 text-xs text-[#64748B]">
+                عدد الدفعات: {paymentCount}
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -2269,10 +2518,10 @@ function Invoices({ data, search, setSearch, clientName, projectName, money, set
 }
 
 // =====================================================
-// 18. EMPLOYEES
+// 16. EMPLOYEES - مُعدلة لاستقبال updateEmployee
 // =====================================================
 
-function Employees({ data, setModal, setSelected, can }) {
+function Employees({ data, setModal, setSelected, can, updateEmployee }) {
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]">
       <PageHeader
@@ -2293,67 +2542,82 @@ function Employees({ data, setModal, setSelected, can }) {
             <p className="mt-1 text-sm leading-7 text-[#64748B]">
               المدير يستطيع إدارة النظام، بينما المدير والموظف يحصلان فقط على الصلاحيات التي يتم تحديدها لهما.
               في Laravel يجب إعادة فحص هذه الصلاحيات على الخادم.
+              <br />
+              <span className="text-[#5EA8CC] font-bold">
+                💡 ملاحظة: عند تعديل بيانات المدير (الموظف رقم 1)، سيتم تحديث اسمه وصورته في جميع أنحاء النظام تلقائياً.
+              </span>
             </p>
           </div>
         </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        {data.employees.map((x) => (
-          <Card key={x.id} className="p-6 transition-all duration-300 hover:shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0F172A] text-white text-2xl">
-                {x.avatar || "👤"}
+        {data.employees.map((x) => {
+          const isAdmin = x.id === 1 && x.role === "admin";
+          
+          return (
+            <Card key={x.id} className={`p-6 transition-all duration-300 hover:shadow-lg ${isAdmin ? "border-2 border-[#5EA8CC] bg-[#EAF6FC]/20" : ""}`}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0F172A] text-white text-2xl">
+                  {x.avatar || "👤"}
+                </div>
+                <div className="min-w-0">
+                  <b className="block truncate text-[#0F172A]">
+                    {x.name}
+                    {isAdmin && <span className="mr-2 text-xs text-[#5EA8CC]">👑 مدير</span>}
+                  </b>
+                  <p className="truncate text-xs text-[#64748B]">{x.email}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <b className="block truncate text-[#0F172A]">{x.name}</b>
-                <p className="truncate text-xs text-[#64748B]">{x.email}</p>
+
+              <div className="mt-5 flex items-center justify-between">
+                <Badge tone={isAdmin ? "primary" : "slate"}>{roleLabels[x.role]}</Badge>
+                {labelStatus(x.status)}
               </div>
-            </div>
 
-            <div className="mt-5 flex items-center justify-between">
-              <Badge tone="primary">{roleLabels[x.role]}</Badge>
-              {labelStatus(x.status)}
-            </div>
-
-            <div className="mt-4">
-              <p className="text-xs font-bold text-[#64748B]">الصلاحيات</p>
-              <p className="mt-1 text-sm font-black text-[#0F172A]">
-                {x.permissions?.includes("*") ? "كل الصلاحيات" : `${x.permissions?.length || 0} صلاحية`}
-              </p>
-            </div>
-
-            {can("employees.manage") && (
-              <div className="mt-4 flex gap-2">
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setSelected(x);
-                    setModal("employeeEdit");
-                  }}
-                >
-                  <ShieldCheck size={15} /> الصلاحيات
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelected(x);
-                    setModal("employeeEdit");
-                  }}
-                >
-                  <Edit3 size={15} /> تعديل
-                </Button>
+              <div className="mt-4">
+                <p className="text-xs font-bold text-[#64748B]">الصلاحيات</p>
+                <p className="mt-1 text-sm font-black text-[#0F172A]">
+                  {x.permissions?.includes("*") ? "كل الصلاحيات" : `${x.permissions?.length || 0} صلاحية`}
+                </p>
               </div>
-            )}
-          </Card>
-        ))}
+
+              <div className="mt-2 text-xs text-[#64748B]">
+                تاريخ الانضمام: {x.createdAt || "—"}
+              </div>
+
+              {can("employees.manage") && (
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      setSelected(x);
+                      setModal("employeeEdit");
+                    }}
+                  >
+                    <ShieldCheck size={15} /> {isAdmin ? "تعديل المدير" : "الصلاحيات"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelected(x);
+                      setModal("employeeEdit");
+                    }}
+                  >
+                    <Edit3 size={15} /> تعديل
+                  </Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
 }
 
 // =====================================================
-// 19. REPORTS
+// 17. REPORTS
 // =====================================================
 
 function Reports({ data, setModal, money }) {
@@ -2417,10 +2681,10 @@ function Reports({ data, setModal, money }) {
 }
 
 // =====================================================
-// 20. ACTIVITY
+// 18. ACTIVITY
 // =====================================================
 
-function ActivityPage({ items, search, setSearch }) {
+function ActivityPage({ items, search, setSearch, employeeName }) {
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]">
       <PageHeader
@@ -2441,7 +2705,7 @@ function ActivityPage({ items, search, setSearch }) {
               </span>
               <div>
                 <b className="text-sm text-[#0F172A]">{x.text}</b>
-                <p className="mt-1 text-xs text-[#64748B]">{x.code} • {x.actor} • {x.createdAt}</p>
+                <p className="mt-1 text-xs text-[#64748B]">{x.code} • {employeeName(x.actorId) || x.actor} • {x.createdAt}</p>
               </div>
             </div>
           ))}
@@ -2453,7 +2717,7 @@ function ActivityPage({ items, search, setSearch }) {
 }
 
 // =====================================================
-// 21. SETTINGS
+// 19. SETTINGS
 // =====================================================
 
 function SettingsPage({ data, save, reset }) {
@@ -2566,7 +2830,7 @@ function SettingsPage({ data, save, reset }) {
 }
 
 // =====================================================
-// 22. UI HELPERS
+// 20. UI HELPERS
 // =====================================================
 
 function Toggle({ label, value, onChange }) {
@@ -2599,7 +2863,7 @@ function Box({ label, value, tone = "default" }) {
 }
 
 // =====================================================
-// 23. MODALS
+// 21. MODALS
 // =====================================================
 
 function ClientModal({ close, submit, initial, edit = false }) {
@@ -2849,7 +3113,7 @@ function ReportModal({ close, submit }) {
 }
 
 // =====================================================
-// 24. HELPERS (continued)
+// 22. HELPERS (continued)
 // =====================================================
 
 function buildReportSummary(data, type) {

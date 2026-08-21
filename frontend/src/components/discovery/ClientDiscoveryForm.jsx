@@ -220,6 +220,9 @@ function ClientDiscoveryForm() {
     // =================================================
     // Submit
     // =================================================
+    // =====================================================
+    // Submit - معدل لحفظ البيانات وربطها
+    // =====================================================
 
     const submitForm = async () => {
         if (isSubmitting) return;
@@ -235,21 +238,25 @@ function ClientDiscoveryForm() {
         try {
             const submittedData = structuredClone(formData);
 
-            // Create Pending Discovery
+            // =============================================
+            // 1. حفظ بيانات النموذج
+            // =============================================
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(submittedData));
+
+            // =============================================
+            // 2. إنشاء سجل الانتظار
+            // =============================================
             const pendingDiscovery = {
                 id: `discovery_${Date.now()}`,
                 status: "awaiting_authentication",
                 createdAt: new Date().toISOString(),
                 data: submittedData,
             };
-
-            // Save complete discovery form
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(submittedData));
-
-            // Save pending discovery
             localStorage.setItem(PENDING_DISCOVERY_KEY, JSON.stringify(pendingDiscovery));
 
-            // Save project state for dashboard
+            // =============================================
+            // 3. إنشاء حالة المشروع للعميل
+            // =============================================
             const projectState = {
                 id: `project-${Date.now()}`,
                 companyApproved: false,
@@ -262,6 +269,7 @@ function ClientDiscoveryForm() {
                 expectedDate: "سيتم تحديده بعد اعتماد المشروع والدفع",
                 progress: 0,
                 completedTasks: 0,
+                // الخدمات المختارة من النموذج
                 services: submittedData.services.map((name, index) => ({
                     id: `service-${index}-${Date.now()}`,
                     name,
@@ -298,17 +306,47 @@ function ClientDiscoveryForm() {
                     { id: "approval", title: "موافقة العميل", status: "locked", date: null },
                     { id: "delivery", title: "التسليم النهائي", status: "locked", date: null },
                 ],
+                // بيانات النموذج كاملة للرجوع إليها
+                discoveryData: submittedData,
             };
-
             localStorage.setItem(PROJECT_KEY, JSON.stringify(projectState));
 
-            // Verify pending data was saved
+            // =============================================
+            // 4. إنشاء طلب للإدارة (DashboardPage)
+            // =============================================
+            const adminRequest = {
+                id: `req_${Date.now()}`,
+                clientId: `pending_${Date.now()}`,
+                clientName: submittedData.companyName || "عميل جديد",
+                clientEmail: submittedData.email || "",
+                clientPhone: submittedData.phone || "",
+                title: `طلب خدمات من ${submittedData.companyName || "عميل جديد"}`,
+                service: submittedData.services?.join("، ") || "خدمات متعددة",
+                description: submittedData.expectations || "لم يضف توقعات",
+                status: "pending",
+                priority: "high",
+                createdAt: new Date().toISOString(),
+                source: "ClientDiscoveryPage",
+                discoveryData: submittedData,
+            };
+
+            // حفظ الطلب في localStorage للإدارة
+            const adminKey = "sabarat_admin_requests";
+            const existingRequests = JSON.parse(localStorage.getItem(adminKey) || "[]");
+            existingRequests.unshift(adminRequest);
+            localStorage.setItem(adminKey, JSON.stringify(existingRequests));
+
+            // =============================================
+            // 5. التحقق من الحفظ
+            // =============================================
             const savedPendingDiscovery = getPendingDiscovery();
             if (!savedPendingDiscovery) {
                 throw new Error("Pending discovery could not be saved.");
             }
 
-            // Show success screen
+            // =============================================
+            // 6. إظهار صفحة النجاح
+            // =============================================
             setSubmitted(true);
             window.scrollTo({ top: 0, behavior: "smooth" });
 
