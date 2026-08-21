@@ -270,6 +270,7 @@ PRINT MEDIA
         page-break-inside: avoid;
     }
 }
+
 /* =========================================================
    SABARAT Dashboard Animations
 ========================================================= */
@@ -287,6 +288,7 @@ PRINT MEDIA
 }
 
 @keyframes dashboard-float {
+
     0%,
     100% {
         transform: translate3d(0, 0, 0);
@@ -298,6 +300,7 @@ PRINT MEDIA
 }
 
 @keyframes dashboard-pulse {
+
     0%,
     100% {
         opacity: 0.35;
@@ -362,12 +365,10 @@ PRINT MEDIA
     position: absolute;
     inset: 0;
     width: 50%;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.12),
-        transparent
-    );
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.12),
+            transparent);
     transform: translateX(-100%);
     animation: dashboard-shimmer 3s infinite;
     pointer-events: none;
@@ -389,6 +390,7 @@ html {
 /* Respect accessibility */
 
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
@@ -397,6 +399,7 @@ html {
         scroll-behavior: auto !important;
     }
 }
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -407,4 +410,63 @@ html {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/*
+// =====================================================
+الخاص بالDashboardPage
+// =====================================================
+*/
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+.animate-fadeIn {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+
+.animate-slideUp {
+    animation: slideUp 0.3s ease-out forwards;
+}
+
+
+.animate-slideDown {
+    animation: slideDown 0.3s ease-out forwards;
 }

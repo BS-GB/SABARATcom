@@ -1,10 +1,11 @@
 import { Check } from "lucide-react";
 import { discoverySteps } from "../../data/discoveryForm";
 
-function DiscoveryProgress({ currentStep }) {
+function DiscoveryProgress({ currentStep, onStepChange }) {
     return (
         <div className="mb-10">
 
+            {/* Desktop Progress */}
             <div className="hidden lg:flex items-center justify-between">
 
                 {discoverySteps.map((step, index) => {
@@ -18,7 +19,12 @@ function DiscoveryProgress({ currentStep }) {
                             className="flex flex-1 items-center"
                         >
 
-                            <div className="flex flex-col items-center">
+                            <button
+                                type="button"
+                                onClick={() => onStepChange?.(step.id)}
+                                className="flex flex-col items-center group"
+                                aria-label={`الانتقال إلى ${step.title}`}
+                            >
 
                                 <div
                                     className={`
@@ -26,12 +32,12 @@ function DiscoveryProgress({ currentStep }) {
                                         rounded-full border-2
                                         text-sm font-bold
                                         transition-all duration-500
-                                        ${
-                                            completed
-                                                ? "border-[#5EA8CC] bg-[#5EA8CC] text-white"
-                                                : active
-                                                    ? "border-[#5EA8CC] bg-white text-[#5EA8CC] shadow-lg shadow-[#5EA8CC]/20"
-                                                    : "border-slate-200 bg-white text-slate-400"
+                                        group-hover:scale-105
+                                        ${completed
+                                            ? "border-[#5EA8CC] bg-[#5EA8CC] text-white"
+                                            : active
+                                                ? "border-[#5EA8CC] bg-white text-[#5EA8CC] shadow-lg shadow-[#5EA8CC]/20"
+                                                : "border-slate-200 bg-white text-slate-400 hover:border-[#5EA8CC]/40"
                                         }
                                     `}
                                 >
@@ -45,27 +51,25 @@ function DiscoveryProgress({ currentStep }) {
                                 <span
                                     className={`
                                         mt-3 hidden xl:block text-xs font-semibold
-                                        ${
-                                            active
-                                                ? "text-[#5EA8CC]"
-                                                : "text-slate-400"
+                                        ${active
+                                            ? "text-[#5EA8CC]"
+                                            : "text-slate-400"
                                         }
                                     `}
                                 >
                                     {step.title}
                                 </span>
 
-                            </div>
+                            </button>
 
                             {index !== discoverySteps.length - 1 && (
                                 <div
                                     className={`
                                         mx-2 h-[2px] flex-1
                                         transition-colors duration-500
-                                        ${
-                                            currentStep > step.id
-                                                ? "bg-[#5EA8CC]"
-                                                : "bg-slate-200"
+                                        ${currentStep > step.id
+                                            ? "bg-[#5EA8CC]"
+                                            : "bg-slate-200"
                                         }
                                     `}
                                 />
@@ -77,25 +81,23 @@ function DiscoveryProgress({ currentStep }) {
 
             </div>
 
-            {/* Mobile */}
+            {/* Mobile Progress */}
             <div className="lg:hidden">
 
                 <div className="flex items-center justify-between">
 
                     <div>
                         <p className="text-xs font-bold uppercase tracking-widest text-[#5EA8CC]">
-                            Step {currentStep} / {discoverySteps.length}
+                            الخطوة {currentStep} / {discoverySteps.length}
                         </p>
 
                         <h2 className="mt-1 text-xl font-extrabold text-slate-900">
-                            {discoverySteps[currentStep - 1].title}
+                            {discoverySteps[currentStep - 1]?.title || ""}
                         </h2>
                     </div>
 
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EAF6FC] text-sm font-extrabold text-[#5EA8CC]">
-                        {Math.round(
-                            (currentStep / discoverySteps.length) * 100
-                        )}%
+                        {Math.round((currentStep / discoverySteps.length) * 100)}%
                     </div>
 
                 </div>

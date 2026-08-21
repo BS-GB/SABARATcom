@@ -274,10 +274,11 @@ function getProject(discovery) {
 }
 
 // =====================================================
-// 10. Calculate Project State
+// 10. Calculate Project State (مُصحَّح)
 // =====================================================
 
 function calculate(project) {
+    // الحالة 1: لم يتم اعتماد المشروع من الشركة
     if (!project.companyApproved) {
         return {
             progress: 0,
@@ -288,16 +289,29 @@ function calculate(project) {
         };
     }
 
+    // الحالة 2: تم الاعتماد ولكن لم يتم الدفع
     if (project.companyApproved && !project.paymentCompleted) {
+        // إذا كان الدفع قيد المراجعة
+        if (project.paymentUnderReview) {
+            return {
+                progress: 0,
+                status: STATUS.paymentReview,
+                currentStage: "مراجعة الدفع",
+                nextStage: "تأكيد الدفع من الإدارة",
+                expectedDate: "سيتم تحديد الموعد بعد تأكيد الدفع",
+            };
+        }
+        // الدفع لم يتم بعد
         return {
             progress: 0,
-            status: project.paymentUnderReview ? STATUS.paymentReview : STATUS.payment,
-            currentStage: project.paymentUnderReview ? "مراجعة الدفع" : "بانتظار الدفع",
-            nextStage: project.paymentUnderReview ? "تأكيد الدفع من الإدارة" : "إتمام الدفع",
+            status: STATUS.payment,
+            currentStage: "بانتظار الدفع",
+            nextStage: "إتمام الدفع",
             expectedDate: "سيتم تحديد الموعد بعد تأكيد الدفع",
         };
     }
 
+    // الحالة 3: تم الدفع ولكن لم يتم إنشاء المشروع
     if (project.paymentCompleted && !project.projectCreated) {
         return {
             progress: 0,
@@ -308,23 +322,41 @@ function calculate(project) {
         };
     }
 
+    // الحالة 4: تم إنشاء المشروع - حساب التقدم بناءً على المهام
     const tasks = Array.isArray(project.tasks) ? project.tasks : [];
     const completed = tasks.filter(task => task.status === "منجز").length;
-    const progress = tasks.length
-        ? Math.round((completed / tasks.length) * 100)
-        : Number(project.progress || 0);
+    let progress = 0;
+    
+    if (tasks.length > 0) {
+        progress = Math.round((completed / tasks.length) * 100);
+    } else {
+        // إذا لم توجد مهام، استخدم القيمة المحفوظة
+        progress = Number(project.progress || 0);
+    }
+
+    // تحديد الحالة بناءً على مرحلة المشروع
+    let status = project.status || STATUS.progress;
+    let currentStage = project.currentStage || STATUS.progress;
+    let nextStage = project.nextStage || "المراجعة";
+
+    // إذا كانت كل المهام منجزة ولم يتم تسليم المشروع
+    if (tasks.length > 0 && completed === tasks.length && status !== STATUS.delivered && status !== STATUS.completed) {
+        status = STATUS.clientApproval;
+        currentStage = "بانتظار موافقة العميل";
+        nextStage = "التسليم النهائي";
+    }
 
     return {
         progress: Math.max(0, Math.min(100, progress)),
-        status: project.status || STATUS.progress,
-        currentStage: project.currentStage || STATUS.progress,
-        nextStage: project.nextStage || "المراجعة",
+        status,
+        currentStage,
+        nextStage,
         expectedDate: project.expectedDate || "قيد التحديد",
     };
 }
 
 // =====================================================
-// 11. Main ClientDashboardPage
+// 11. Main ClientDashboardPage (مُصحَّح)
 // =====================================================
 
 export default function ClientDashboardPage() {
@@ -334,6 +366,7 @@ export default function ClientDashboardPage() {
     const [project, setProject] = useState(() => getProject(discovery));
     const [payment, setPayment] = useState(() => read(PAYMENT_KEY, initialPayment(discovery)));
 
+    // حفظ الحالة في localStorage
     useEffect(() => { write(PROJECT_KEY, project); }, [project]);
     useEffect(() => { write(PAYMENT_KEY, payment); }, [payment]);
 
@@ -347,12 +380,22 @@ export default function ClientDashboardPage() {
         setProject(prev => ({
             ...prev,
             notifications: [
-                { id: `notification-${Date.now()}-${Math.random()}`, type, title, text, time: "الآن", read: false },
+                { 
+                    id: `notification-${Date.now()}-${Math.random()}`, 
+                    type, 
+                    title, 
+                    text, 
+                    time: "الآن", 
+                    read: false 
+                },
                 ...(prev.notifications || []),
             ],
         }));
     };
 
+    // ================================================
+    // approveProject - اعتماد المشروع من الشركة
+    // ================================================
     const approveProject = () => {
         setProject(prev => ({
             ...prev,
@@ -371,15 +414,52 @@ export default function ClientDashboardPage() {
                         : item
             ),
         }));
-        addNotification("تم اعتماد مشروعك", "تم اعتماد طلبك من إدارة SABARAT. يمكنك الآن الانتقال إلى قسم الدفع لإكمال الإجراءات وبدء المشروع.", "approval");
+        
+        // إعادة تعيين حالة الدفع
+        setPayment(prev => ({
+            ...prev,
+            submitted: false,
+            reviewed: false,
+            approved: false,
+            status: "بانتظار الدفع",
+            submittedAt: null,
+            reviewedAt: null,
+        }));
+
+        addNotification(
+            "تم اعتماد مشروعك", 
+            "تم اعتماد طلبك من إدارة SABARAT. يمكنك الآن الانتقال إلى قسم الدفع لإكمال الإجراءات وبدء المشروع.",
+            "approval"
+        );
         setSection("overview");
     };
 
+    // ================================================
+    // submitPayment - إرسال طلب الدفع
+    // ================================================
     const submitPayment = () => {
-        if (!project.companyApproved) return;
-        if (!payment.selectedMethod) { alert("يرجى اختيار طريقة الدفع أولًا."); return; }
-        if (!payment.amount || Number(payment.amount) <= 0) { alert("يرجى إدخال مبلغ الدفع."); return; }
+        // التحقق من صحة البيانات
+        if (!project.companyApproved) {
+            alert("⚠️ المشروع لم يتم اعتماده بعد. يرجى انتظار اعتماد الإدارة.");
+            return;
+        }
 
+        if (project.paymentCompleted) {
+            alert("✅ تم إتمام الدفع مسبقًا.");
+            return;
+        }
+
+        if (!payment.selectedMethod) {
+            alert("⚠️ يرجى اختيار طريقة الدفع أولًا.");
+            return;
+        }
+
+        if (!payment.amount || Number(payment.amount) <= 0) {
+            alert("⚠️ يرجى إدخال مبلغ الدفع الصحيح.");
+            return;
+        }
+
+        // تحديث حالة الدفع
         setPayment(prev => ({
             ...prev,
             submitted: true,
@@ -388,6 +468,8 @@ export default function ClientDashboardPage() {
             status: "بانتظار مراجعة الإدارة",
             submittedAt: new Date().toISOString(),
         }));
+
+        // تحديث حالة المشروع
         setProject(prev => ({
             ...prev,
             paymentUnderReview: true,
@@ -396,35 +478,73 @@ export default function ClientDashboardPage() {
             currentStage: "مراجعة الدفع",
             nextStage: "تأكيد الدفع من الإدارة",
         }));
-        addNotification("تم إرسال إثبات الدفع", "تم إرسال بيانات عملية الدفع بنجاح، وسيقوم الفريق المالي بمراجعتها.", "payment");
+
+        addNotification(
+            "تم إرسال إثبات الدفع", 
+            "تم إرسال بيانات عملية الدفع بنجاح، وسيقوم الفريق المالي بمراجعتها.",
+            "payment"
+        );
     };
 
+    // ================================================
+    // confirmPayment - تأكيد الدفع (من الإدارة)
+    // ================================================
     const confirmPayment = () => {
-        if (!project.companyApproved) return;
-        setPayment(prev => ({ ...prev, submitted: true, reviewed: true, approved: true, status: "تم تأكيد الدفع", reviewedAt: new Date().toISOString() }));
+        if (!project.companyApproved) {
+            alert("⚠️ المشروع لم يتم اعتماده بعد.");
+            return;
+        }
+
+        if (project.paymentCompleted) {
+            alert("✅ تم تأكيد الدفع مسبقًا.");
+            return;
+        }
+
+        // تحديث حالة الدفع
+        setPayment(prev => ({
+            ...prev,
+            submitted: true,
+            reviewed: true,
+            approved: true,
+            status: "تم تأكيد الدفع",
+            reviewedAt: new Date().toISOString(),
+        }));
+
+        // تحديث حالة المشروع
         setProject(prev => ({
             ...prev,
-            paymentUnderReview: false,
-            paymentCompleted: true,
-            projectCreated: true,
+            paymentUnderReview: false,   // ✅ إيقاف حالة المراجعة
+            paymentCompleted: true,       // ✅ تأكيد إتمام الدفع
+            projectCreated: true,         // ✅ إنشاء المشروع
             status: STATUS.planning,
             currentStage: "التخطيط",
             nextStage: "بدء التنفيذ",
             timeline: prev.timeline.map(item => {
-                if (item.id === "payment") return { ...item, status: "completed", date: new Date().toISOString() };
-                if (item.id === "planning") return { ...item, status: "current" };
+                if (item.id === "payment") {
+                    return { ...item, status: "completed", date: new Date().toISOString() };
+                }
+                if (item.id === "planning") {
+                    return { ...item, status: "current" };
+                }
                 return item;
             }),
-            notifications: [
-                { id: `notification-${Date.now()}`, type: "payment", title: "تم تأكيد الدفع", text: "تم تأكيد عملية الدفع. أصبح مشروعك جاهزًا للانتقال إلى التخطيط والتنفيذ.", time: "الآن", read: false },
-                ...prev.notifications,
-            ],
         }));
+
+        addNotification(
+            "تم تأكيد الدفع", 
+            "تم تأكيد عملية الدفع. أصبح مشروعك جاهزًا للانتقال إلى التخطيط والتنفيذ.",
+            "payment"
+        );
+        
         setSection("overview");
     };
 
+    // ================================================
+    // sendMessage - إرسال رسالة
+    // ================================================
     const sendMessage = text => {
         if (!text || !text.trim()) return;
+        
         const message = {
             id: `message-${Date.now()}`,
             sender: "client",
@@ -432,10 +552,22 @@ export default function ClientDashboardPage() {
             time: new Date().toLocaleString("ar-YE"),
             status: "تم الإرسال",
         };
-        setProject(prev => ({ ...prev, messages: [...prev.messages, message] }));
-        addNotification("رسالة جديدة للفريق", "تم إرسال رسالتك إلى فريق SABARAT.", "message");
+        
+        setProject(prev => ({ 
+            ...prev, 
+            messages: [...prev.messages, message] 
+        }));
+        
+        addNotification(
+            "رسالة جديدة للفريق", 
+            "تم إرسال رسالتك إلى فريق SABARAT.",
+            "message"
+        );
     };
 
+    // ================================================
+    // handleApproval - معالجة الموافقات
+    // ================================================
     const handleApproval = (id, status, note) => {
         setProject(prev => ({
             ...prev,
@@ -444,22 +576,22 @@ export default function ClientDashboardPage() {
                     ? { ...item, status, clientNote: note, updatedAt: new Date().toLocaleString("ar-YE") }
                     : item
             ),
-            notifications: [
-                {
-                    id: `notification-${Date.now()}`,
-                    type: "approval",
-                    title: status === "تمت الموافقة" ? "تم اعتماد التسليم" : "تم طلب تعديل",
-                    text: status === "تمت الموافقة" ? "تم إرسال موافقتك إلى فريق SABARAT." : "تم إرسال ملاحظات التعديل إلى الفريق.",
-                    time: "الآن",
-                    read: false,
-                },
-                ...prev.notifications,
-            ],
         }));
+        
+        addNotification(
+            status === "تمت الموافقة" ? "تم اعتماد التسليم" : "تم طلب تعديل",
+            status === "تمت الموافقة" 
+                ? "تم إرسال موافقتك إلى فريق SABARAT." 
+                : "تم إرسال ملاحظات التعديل إلى الفريق.",
+            "approval"
+        );
     };
 
     const markNotificationsRead = () => {
-        setProject(prev => ({ ...prev, notifications: prev.notifications.map(item => ({ ...item, read: true })) }));
+        setProject(prev => ({ 
+            ...prev, 
+            notifications: prev.notifications.map(item => ({ ...item, read: true })) 
+        }));
     };
 
     return (
@@ -496,17 +628,45 @@ export default function ClientDashboardPage() {
                 <main className="min-w-0 flex-1">
                     <div className="mx-auto max-w-[1500px] p-4 sm:p-6 lg:p-8">
                         {section === "overview" && (
-                            <Overview discovery={discovery} project={project} state={state} pending={pendingApprovals} select={selectSection} />
+                            <Overview 
+                                discovery={discovery} 
+                                project={project} 
+                                state={state} 
+                                pending={pendingApprovals} 
+                                select={selectSection} 
+                            />
                         )}
-                        {section === "progress" && <Progress project={project} state={state} discovery={discovery} />}
-                        {section === "services" && <Services services={project.services} />}
-                        {section === "tasks" && <Tasks tasks={project.tasks} />}
-                        {section === "approvals" && <Approvals approvals={project.approvals} onApproval={handleApproval} />}
-                        {section === "files" && <Files files={project.files} />}
-                        {section === "notifications" && <Notifications notifications={project.notifications} markRead={markNotificationsRead} />}
-                        {section === "messages" && <Messages messages={project.messages} send={sendMessage} />}
-                        {section === "meetings" && <Meetings meetings={project.meetings} />}
-                        {section === "invoices" && <Payments project={project} discovery={discovery} selectPayment={() => selectSection("payment")} />}
+                        {section === "progress" && (
+                            <Progress project={project} state={state} discovery={discovery} />
+                        )}
+                        {section === "services" && (
+                            <Services services={project.services} />
+                        )}
+                        {section === "tasks" && (
+                            <Tasks tasks={project.tasks} />
+                        )}
+                        {section === "approvals" && (
+                            <Approvals approvals={project.approvals} onApproval={handleApproval} />
+                        )}
+                        {section === "files" && (
+                            <Files files={project.files} />
+                        )}
+                        {section === "notifications" && (
+                            <Notifications notifications={project.notifications} markRead={markNotificationsRead} />
+                        )}
+                        {section === "messages" && (
+                            <Messages messages={project.messages} send={sendMessage} />
+                        )}
+                        {section === "meetings" && (
+                            <Meetings meetings={project.meetings} />
+                        )}
+                        {section === "invoices" && (
+                            <Payments 
+                                project={project} 
+                                discovery={discovery} 
+                                selectPayment={() => selectSection("payment")} 
+                            />
+                        )}
                         {section === "payment" && (
                             <PaymentMethods
                                 project={project}
@@ -517,9 +677,15 @@ export default function ClientDashboardPage() {
                                 confirmPayment={confirmPayment}
                             />
                         )}
-                        {section === "requests" && <Requests project={project} setProject={setProject} />}
-                        {section === "support" && <Support project={project} setProject={setProject} />}
-                        {section === "company" && <Company discovery={discovery} />}
+                        {section === "requests" && (
+                            <Requests project={project} setProject={setProject} />
+                        )}
+                        {section === "support" && (
+                            <Support project={project} setProject={setProject} />
+                        )}
+                        {section === "company" && (
+                            <Company discovery={discovery} />
+                        )}
                     </div>
                 </main>
             </div>
@@ -1711,11 +1877,16 @@ function InvoiceItem({ invoice }) {
 function PaymentMethods({ project, discovery, payment, setPayment, submitPayment, confirmPayment }) {
     const [amount, setAmount] = useState(payment.amount || 0);
     const [method, setMethod] = useState(payment.selectedMethod || "");
-    const [proof, setProof] = useState(null);
     const [notes, setNotes] = useState(payment.notes || "");
 
     const handleSubmit = () => {
-        setPayment({ ...payment, amount, selectedMethod: method, notes, proofFile: proof });
+        // تحديث حالة الدفع قبل الإرسال
+        setPayment({ 
+            ...payment, 
+            amount, 
+            selectedMethod: method, 
+            notes,
+        });
         submitPayment();
     };
 
@@ -1809,14 +1980,6 @@ function PaymentMethods({ project, discovery, payment, setPayment, submitPayment
                             onChange={(e) => setAmount(Number(e.target.value))}
                             placeholder="0.00"
                             className="mt-2 w-full rounded-xl border border-[#E2E8F0] p-3 text-lg font-bold outline-none transition focus:border-[#5EA8CC] focus:ring-4 focus:ring-[#5EA8CC]/10"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-[#64748B]">إثبات الدفع (اختياري)</label>
-                        <input
-                            type="file"
-                            onChange={(e) => setProof(e.target.files?.[0] || null)}
-                            className="mt-2 w-full rounded-xl border border-[#E2E8F0] p-3 text-sm outline-none transition focus:border-[#5EA8CC]"
                         />
                     </div>
                     <div>
